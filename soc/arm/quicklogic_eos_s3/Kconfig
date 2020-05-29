@@ -13,3 +13,9 @@ config SOC_EOS_S3_FPGA
        bool
        help
          Enable on chip FPGA
+
+config EOS_S3_PROGRAM_FPGA
+	bool
+	help
+	  Enable programming the FPGA IP on EOS S3
+

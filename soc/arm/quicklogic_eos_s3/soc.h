@@ -53,6 +53,7 @@ void eos_s3_lock_enable(void);
 void eos_s3_lock_disable(void);
 
 int eos_s3_io_mux(u32_t pad_nr, u32_t pad_cfg);
+int eos_s3_fbio_select(u32_t pad_nr, u32_t ucFunc);
 
 #undef NVIC_DisableIRQ
 #undef NVIC_EnableIRQ
@@ -64,6 +65,8 @@ int eos_s3_io_mux(u32_t pad_nr, u32_t pad_cfg);
 void EOSS3_DisableIRQ(IRQn_Type IRQn);
 void EOSS3_EnableIRQ(IRQn_Type IRQn);
 void EOSS3_ClearPendingIRQ(IRQn_Type IRQn);
+
+void program_fpga_ip();
 
 #define NVIC_DisableIRQ		EOSS3_DisableIRQ
 #define NVIC_EnableIRQ		EOSS3_EnableIRQ

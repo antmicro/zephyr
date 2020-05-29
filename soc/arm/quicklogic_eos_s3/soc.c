@@ -80,6 +80,29 @@ int eos_s3_io_mux(u32_t pad_nr, u32_t pad_cfg)
 	return 0;
 }
 
+int eos_s3_fbio_select(u32_t pad_nr, u32_t ucFunc)
+{
+	u32_t uiExtRegAddr;
+	u32_t *pExtRegAddr;
+
+	uiExtRegAddr = ucFunc >> EXT_REG_OFFSET_SHIFT;
+
+	if(uiExtRegAddr == FBIO_SEL_2)
+    	{
+    		uiExtRegAddr = uiExtRegAddr | IO_MUX_BASE;
+    		pExtRegAddr = (uint32_t *)uiExtRegAddr;
+    		*pExtRegAddr |= 1 << (pad_nr - 32);
+    	}
+    	else
+    	{
+    		uiExtRegAddr |= IO_MUX_BASE;
+    		pExtRegAddr = (uint32_t *)uiExtRegAddr;
+    		*pExtRegAddr |= 1 << pad_nr;
+    	}
+
+	return 0;
+}
+
 static void eos_s3_cru_init(void)
 {
 	/* Set desired frequency */
@@ -143,6 +166,7 @@ static void eos_s3_fpga_init(void)
 
 	CRU->C08_X4_CLK_GATE = C08_X4_CLK_GATE_PATH_0_ON;
 
+
 	/* Setup Wishbone clock of FPGA to be divided by 8.
 	 * Maximum Wishbone clock frequency supported by FPGA is 10MHz.
 	 */
@@ -168,6 +192,10 @@ static int eos_s3_init(struct device *arg)
 	eos_s3_lock_enable();
 	eos_s3_cru_init();
 	eos_s3_lock_disable();
+
+#ifdef CONFIG_EOS_S3_PROGRAM_FPGA
+	program_fpga_ip();
+#endif
 
 #ifdef CONFIG_SOC_EOS_S3_FPGA
 	eos_s3_fpga_init();
