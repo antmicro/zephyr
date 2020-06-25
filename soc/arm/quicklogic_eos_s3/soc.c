@@ -132,6 +132,11 @@ static void eos_s3_cru_init(void)
 	/* Set divider for domain C11 to ~ 5.12MHz */
 	CRU->CLK_CTRL_D_0 = (CLK_CTRL_CLK_DIVIDER_ENABLE |
 		CLK_CTRL_CLK_DIVIDER_RATIO_12);
+
+	/* Set C02 clock to default value,
+	 * if any prev app such as boot loader changes it will be set back
+	 */
+	CRU->CLK_CTRL_B_0 = 0x204;
 }
 
 #ifdef CONFIG_SOC_EOS_S3_FPGA

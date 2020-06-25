@@ -68,8 +68,6 @@ void main(void)
 		printf("Flash write failed! %d\n", rc);
 		return;
 	}
-	// Sleep for a while
-        k_sleep(100); //in ms
 
 	memset(buf, 0, len);
 	rc = flash_read(flash_dev, FLASH_TEST_REGION_OFFSET, buf, len);
