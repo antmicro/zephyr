@@ -1,0 +1,18 @@
+# Copyright 2020 QuickLogic
+# Licensed under the Apache License, Version 2.0 
+
+menuconfig EOS_S3_PWM
+	bool "EOS S3 LiteX PWM driver"
+	depends on HAS_DTS
+	help
+	  Set if PWM IP generated with EOS S3 tools
+
+if EOS_S3_PWM
+
+config PWM_LITEX_INIT_PRIORITY
+	int "Init priority"
+	default 70
+	help
+	  PWM device driver initialization priority.
+
+endif # PWM_LITEX

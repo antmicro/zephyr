@@ -11,6 +11,10 @@ config BOARD
 if PWM
 
 config PWM_LITEX
+	select SOC_EOS_S3_FPGA
+	default n
+
+config EOS_S3_PWM
 	select EOS_S3_PROGRAM_FPGA
 	default y
 
