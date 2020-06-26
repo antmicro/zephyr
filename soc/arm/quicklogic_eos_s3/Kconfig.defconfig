@@ -58,7 +58,7 @@ config SPI_EOS_S3
 endif # SPI
 
 if LED
-config EOS_S3_LED1
+config EOS_S3_LED_BASIC
 	select EOS_S3_PROGRAM_FPGA
 	default y
 endif # LED

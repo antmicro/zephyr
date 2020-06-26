@@ -5,5 +5,6 @@ zephyr_include_directories(${ZEPHYR_BASE}/drivers)
 zephyr_sources(
   soc.c
   irq_handlers.c
-  fpga_loader.c
   )
+zephyr_sources_ifdef(CONFIG_EOS_S3_PROGRAM_FPGA fpga_loader.c)
+

@@ -12,21 +12,25 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *
- *    File      : pwm_eos_s3.c
- *    Purpose   : This file has the function to load pwm fpga ip
- *
+ *    File      : main.c
+ *    Purpose   : This file has simple prints.
+ *                No other configuration needs to be done here
  *
  * ===========================================================
  */
 
 #include <zephyr.h>
+#include <device.h>
 #include <soc.h>
-#include <fpga_loader.h>
-#include "eos_s3_pwm_ip.h"
 
-void program_fpga_ip(void)
+void main(void)
 {
-	/* Load bitstrem into FPGA */
-	load_fpga(sizeof(axFPGABitStream), axFPGABitStream);
+	printk("\n\n");
+	printk("##########################\n");
+	printk("Quicklogic Open Platform 2.0\n");
+	printk("SW Version: ");
+	printk(" OP2-QuickFeather-led-eos-s3-basic sample");
+	printk("\n");
+	printk(__DATE__ " " __TIME__ "\n");
+	printk("##########################\n\n");
 }
-
