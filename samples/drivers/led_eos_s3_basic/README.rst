@@ -1,12 +1,12 @@
-.. _eos_s3_1:
+.. _eos_s3_basic:
 
-EOS_S3_1: Preconfigured LED
+EOS_S3_BASIC: Preconfigured LED
 ###########################
 
 Overview
 ********
 
-This sample blinks the LEDs which is preconfigured in the FPGA IP:
+This sample blinks the LEDs which is preconfigured in the FPGA IP
 
 
 Building and Running
@@ -15,7 +15,7 @@ Building and Running
 Build the application for the :ref:`quick_feather` board.
 
 .. zephyr-app-commands::
-   :zephyr-app: samples/drivers/led_eos_s3_1
+   :zephyr-app: samples/drivers/led_eos_s3_basic
    :board: quick_feather
    :goals: build
    :compact:

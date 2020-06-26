@@ -66,7 +66,8 @@ void EOSS3_DisableIRQ(IRQn_Type IRQn);
 void EOSS3_EnableIRQ(IRQn_Type IRQn);
 void EOSS3_ClearPendingIRQ(IRQn_Type IRQn);
 
-void program_fpga_ip();
+void program_fpga_ip(void);
+void enable_fpga_clocks(void);
 
 #define NVIC_DisableIRQ		EOSS3_DisableIRQ
 #define NVIC_EnableIRQ		EOSS3_EnableIRQ
