@@ -1,0 +1,8 @@
+sample:
+  description: Demonstration of the eos_s3 basic LED driver
+  name: led_eos_s3_basic sample
+tests:
+  sample.drivers.led.eos_s3_basic:
+    platform_whitelist: quick_feather
+    tags: led
+    harness: TBD

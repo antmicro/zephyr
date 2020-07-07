@@ -80,6 +80,47 @@ int eos_s3_io_mux(u32_t pad_nr, u32_t pad_cfg)
 	return 0;
 }
 
+int eos_s3_fbio_select(u32_t pad_nr, u32_t ucFunc)
+{
+	u32_t uiExtRegAddr;
+	u32_t *pExtRegAddr;
+
+	uiExtRegAddr = ucFunc >> EXT_REG_OFFSET_SHIFT;
+
+	if (uiExtRegAddr == FBIO_SEL_2)	{
+		uiExtRegAddr = uiExtRegAddr | IO_MUX_BASE;
+		pExtRegAddr = (uint32_t *)uiExtRegAddr;
+		*pExtRegAddr |= 1 << (pad_nr - 32);
+	} else {
+		uiExtRegAddr |= IO_MUX_BASE;
+		pExtRegAddr = (uint32_t *)uiExtRegAddr;
+		*pExtRegAddr |= 1 << pad_nr;
+	}
+
+	return 0;
+}
+void enable_fpga_clocks(void)
+{
+	PMU->FFE_FB_PF_SW_WU = PMU_FFE_FB_PF_SW_WU_PF_WU
+		| PMU_FFE_FB_PF_SW_WU_FB_WU
+		| PMU_FFE_FB_PF_SW_WU_FFE_WU;
+	CRU->FB_SW_RESET = FB_C21_DOMAIN_SW_RESET | FB_C16_DOMAIN_SW_RESET
+		| FB_C09_DOMAIN_SW_RESET | FB_C02_DOMAIN_SW_RESET;
+
+	CRU->C02_CLK_GATE = C02_CLK_GATE_PATH_0_ON | C02_CLK_GATE_PATH_1_ON
+		| C02_CLK_GATE_PATH_2_ON;
+
+	CRU->C08_X1_CLK_GATE = C08_X1_CLK_GATE_PATH_1_ON
+		| C08_X1_CLK_GATE_PATH_2_ON;
+
+	CRU->C16_CLK_GATE = C16_CLK_GATE_PATH_0_ON;
+
+	CRU->C21_CLK_GATE = C21_CLK_GATE_PATH_0_ON;
+
+	CRU->C09_CLK_GATE = C09_CLK_GATE_PATH_1_ON | C09_CLK_GATE_PATH_2_ON;
+}
+
+
 static void eos_s3_cru_init(void)
 {
 	/* Set desired frequency */
@@ -109,28 +150,17 @@ static void eos_s3_cru_init(void)
 	/* Set divider for domain C11 to ~ 5.12MHz */
 	CRU->CLK_CTRL_D_0 = (CLK_CTRL_CLK_DIVIDER_ENABLE |
 		CLK_CTRL_CLK_DIVIDER_RATIO_12);
+
+	/* Set C02 clock to default value,
+	 * if any prev app such as boot loader changes it will be set back
+	 */
+	CRU->CLK_CTRL_B_0 = 0x204;
 }
 
 #ifdef CONFIG_SOC_EOS_S3_FPGA
 static void eos_s3_fpga_init(void)
 {
-	PMU->FFE_FB_PF_SW_WU = PMU_FFE_FB_PF_SW_WU_PF_WU
-		| PMU_FFE_FB_PF_SW_WU_FB_WU
-		| PMU_FFE_FB_PF_SW_WU_FFE_WU;
-	CRU->FB_SW_RESET = FB_C21_DOMAIN_SW_RESET | FB_C16_DOMAIN_SW_RESET
-		| FB_C09_DOMAIN_SW_RESET | FB_C02_DOMAIN_SW_RESET;
-
-	CRU->C02_CLK_GATE = C02_CLK_GATE_PATH_0_ON | C02_CLK_GATE_PATH_1_ON
-		| C02_CLK_GATE_PATH_2_ON;
-
-	CRU->C08_X1_CLK_GATE = C08_X1_CLK_GATE_PATH_1_ON
-		| C08_X1_CLK_GATE_PATH_2_ON;
-
-	CRU->C16_CLK_GATE = C16_CLK_GATE_PATH_0_ON;
-
-	CRU->C21_CLK_GATE = C21_CLK_GATE_PATH_0_ON;
-
-	CRU->C09_CLK_GATE = C09_CLK_GATE_PATH_0_ON;
+	enable_fpga_clocks();
 
 	PMU->GEN_PURPOSE_0 = 0;
 	PMU->FB_ISOLATION = 0;
@@ -142,6 +172,7 @@ static void eos_s3_fpga_init(void)
 		| C01_CLK_GATE_PATH_9_ON;
 
 	CRU->C08_X4_CLK_GATE = C08_X4_CLK_GATE_PATH_0_ON;
+
 
 	/* Setup Wishbone clock of FPGA to be divided by 8.
 	 * Maximum Wishbone clock frequency supported by FPGA is 10MHz.
@@ -168,6 +199,10 @@ static int eos_s3_init(struct device *arg)
 	eos_s3_lock_enable();
 	eos_s3_cru_init();
 	eos_s3_lock_disable();
+
+#ifdef CONFIG_EOS_S3_PROGRAM_FPGA
+	program_fpga_ip();
+#endif
 
 #ifdef CONFIG_SOC_EOS_S3_FPGA
 	eos_s3_fpga_init();

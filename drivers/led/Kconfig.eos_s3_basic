@@ -1,0 +1,8 @@
+# Copyright 2020 QuickLogic
+# Licensed under the Apache License, Version 2.0 
+
+config EOS_S3_LED_BASIC
+	bool "EOS S3 basic LED driver"
+	help
+	  Enable basic LED driver for QL S3.
+
