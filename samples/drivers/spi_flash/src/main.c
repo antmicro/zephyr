@@ -21,7 +21,11 @@
 #error Unsupported flash driver
 #endif
 
+#ifdef CONFIG_BOARD_QUICK_FEATHER
 #define FLASH_TEST_REGION_OFFSET 0x100000
+#else
+#define FLASH_TEST_REGION_OFFSET 0xff000
+#endif
 #define FLASH_SECTOR_SIZE        4096
 
 void main(void)
