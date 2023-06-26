@@ -1,0 +1,11 @@
+# Copyright (c) 2023 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+if BOARD_SIWG917_BRD4338A
+
+module = BOARD_SIWG917
+module-str = Board Control
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # BOARD_SIWG917_BRD4338a

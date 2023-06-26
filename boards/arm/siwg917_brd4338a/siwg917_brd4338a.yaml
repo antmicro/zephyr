@@ -1,0 +1,14 @@
+identifier: siwg917_brd4338a
+name: BRD4338A
+type: mcu
+arch: arm
+ram: 196
+flash: 448
+toolchain:
+  - zephyr
+testing:
+  ignore_tags:
+    - net
+    - bluetooth
+    - pm
+    - hwinfo

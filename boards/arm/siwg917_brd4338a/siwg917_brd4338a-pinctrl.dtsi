@@ -1,0 +1,14 @@
+/*
+ * Copyright (c) 2023 Antmicro <www.antmicro.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+&pinctrl0 {
+	uart0_rx_default: uart0_rx_default {
+		pinmux = <0 29 2>;
+	};
+	uart0_tx_default: uart0_tx_default {
+		pinmux = <0 30 2>;
+	};
+};

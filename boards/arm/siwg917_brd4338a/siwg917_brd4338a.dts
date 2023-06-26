@@ -1,0 +1,32 @@
+/*
+ * Copyright (c) 2023 Antmicro <www.antmicro.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+#include <silabs/siwg917m612lgtaa.dtsi>
+#include "siwg917_brd4338a-pinctrl.dtsi"
+
+/ {
+	model = "Silicon Labs BRD4338A";
+	compatible = "silabs,siwg917_brd4338a";
+
+	chosen {
+		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+	};
+
+};
+
+&uart0 {
+	status = "okay";
+	pinctrl-0 = <&uart0_rx_default &uart0_tx_default>;
+	pinctrl-names = "default";
+};
+
+&pinctrl0 {
+	status = "okay";
+};
