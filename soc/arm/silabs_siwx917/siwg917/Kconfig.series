@@ -1,0 +1,13 @@
+# Copyright (c) 2023 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SERIES_SIWG917
+	bool "SiWG917 series MCU"
+	select ARM
+	select CPU_CORTEX_M4
+	select CPU_HAS_FPU
+	select SOC_FAMILY_SIWX917
+	select HAS_SILABS_WISECONNECT
+	help
+	  Enable support for the SiWG917 MCU series

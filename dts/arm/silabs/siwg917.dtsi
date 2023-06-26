@@ -1,0 +1,54 @@
+/*
+ * Copyright (c) 2023 Antmicro <www.antmicro.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <arm/armv7-m.dtsi>
+
+/ {
+	chosen {
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-m4f";
+			reg = <0>;
+		};
+	};
+
+	flash0: flash@8212000 {
+		compatible = "soc-nv-flash";
+		reg = <0x8212000 DT_SIZE_K(440)>;
+	};
+
+	sram0: memory@400 {
+		compatible = "mmio-sram";
+		device_type = "memory";
+		reg = <0x400 DT_SIZE_K(196)>;
+	};
+
+	soc {
+		uart0: uart@44000000 {
+			reg = <0x44000000 0x1000>;
+			current-speed = <115200>;
+			compatible = "ns16550";
+			interrupts = <38 3>;
+			reg-shift = <2>;
+			clock-frequency = <21333333>;
+		};
+
+		pinctrl0: pinctrl@46130000 {
+			reg = <0x46130000 0x1000>;
+			compatible = "silabs,siwx917-pinctrl";
+		};
+	};
+};
+
+&nvic {
+	arm,num-irq-priority-bits = <4>;
+};
