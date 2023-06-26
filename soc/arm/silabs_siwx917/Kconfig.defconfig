@@ -1,0 +1,9 @@
+# Copyright (c) 2023 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_FAMILY_SIWX917
+
+source "soc/arm/silabs_siwx917/*/Kconfig.defconfig.series"
+
+endif # SOC_FAMILY_SIWX917

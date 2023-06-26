@@ -1,0 +1,20 @@
+# Silicon Labs SiWG917 MCU configuration options
+
+# Copyright (c) 2023 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_SERIES_SIWG917
+
+config SOC_SERIES
+	default "siwg917"
+
+config SOC_PART_NUMBER
+	default "siwg917m612lgtaa" if SOC_PART_NUMBER_SIWG917M612LGTAA
+
+config NUM_IRQS
+	default 99
+
+source "soc/arm/silabs_siwx917/siwg917/Kconfig.defconfig.siwg917"
+
+endif # SOC_SERIES_SIWG917
