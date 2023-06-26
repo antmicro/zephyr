@@ -1,0 +1,40 @@
+# Copyright (c) 2023 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  The SiLabs SiWx917 pin controller is a devicetree node tasked with selecting the proper IO
+  function for a given pin.
+
+  Create this node in the SoC devicetree as follows:
+
+    pinctrl0: pinctrl {
+      compatible = "silabs,siwx917-pinctrl";
+    };
+
+  This node expects a vector of three values:
+    - Port number
+    - Pin number
+    - Mux (IO function)
+
+  Create a configuration by referencing the 'pinctrl' node:
+
+    &pinctrl0 {
+      group1: group1 {
+        pinmux = <0 29 2>;
+      };
+    };
+
+compatible: "silabs,siwx917-pinctrl"
+
+include: base.yaml
+
+child-binding:
+  description: |
+    This binding gives a base representation of the SiLabs SiWx917 pins configuration.
+
+  properties:
+    pinmux:
+      required: true
+      type: array
+      description: |
+        SiLabs SiWx917 pin configuration (port, pin, mux).
