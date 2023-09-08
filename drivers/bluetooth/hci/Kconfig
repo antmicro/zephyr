@@ -76,6 +76,18 @@ config BT_SILABS_HCI
 	  Use Silicon Labs binary Bluetooth library to connect to the
 	  controller.
 
+config BT_SIWG917
+	bool "SiWG917 Bluetooth interface"
+	depends on SOC_SERIES_SIWG917
+	select CMSIS_RTOS_V2
+	select THREAD_NAME
+	select THREAD_STACK_INFO
+	select THREAD_MONITOR
+	select INIT_STACKS
+	help
+	  Use Silicon Labs Wiseconnect 3.x Bluetooth library to connect
+	  to the controller.
+
 config BT_USERCHAN
 	bool "HCI User Channel based driver"
 	depends on BOARD_NATIVE_POSIX
