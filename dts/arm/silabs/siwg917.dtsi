@@ -5,6 +5,7 @@
  */
 
 #include <arm/armv7-m.dtsi>
+#include <zephyr/dt-bindings/i2c/i2c.h>
 
 / {
 	chosen {
@@ -50,6 +51,14 @@
 		pinctrl0: pinctrl@46130000 {
 			reg = <0x46130000 0x1000>;
 			compatible = "silabs,siwx917-pinctrl";
+		};
+
+		i2c2: i2c@24040000 {
+			reg = <0x24040000 0x1000>;
+			interrupts = <13 0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "silabs,siwx917-i2c";
 		};
 	};
 };

@@ -34,3 +34,9 @@
 &wifi {
 	status = "okay";
 };
+
+&i2c2 {
+	status = "okay";
+	pinctrl-0 = <&i2c2_scl_default &i2c2_sda_default>;
+	pinctrl-names = "default";
+};
