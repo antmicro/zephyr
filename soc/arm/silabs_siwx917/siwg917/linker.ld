@@ -10,7 +10,7 @@ MEMORY
 	udma1 (rwx): ORIGIN = 0x24060000, LENGTH = 0x400
 }
 
-#include <zephyr/arch/arm/aarch32/cortex_m/scripts/linker.ld>
+#include <zephyr/arch/arm/cortex_m/scripts/linker.ld>
 
 SECTIONS
 {
