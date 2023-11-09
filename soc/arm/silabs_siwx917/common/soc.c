@@ -22,9 +22,19 @@ int silabs_siwx917_init(void)
 
 SYS_INIT(silabs_siwx917_init, PRE_KERNEL_1, 0);
 
+/* TODO: comment explaining what we're doing here */
+extern void *__co_stack_top;
+Z_ISR_DECLARE(30, ISR_FLAG_DIRECT, __co_stack_top, 0);
+
 /*
  * Problem: SiWx917's bootloader requires IRQn 32 to hold payload's entry point address
  * Solution: declare a direct interrupt
  */
 extern void z_arm_reset(void);
 Z_ISR_DECLARE(32, ISR_FLAG_DIRECT, z_arm_reset, 0);
+
+#ifdef CONFIG_WIFI_SIWG917
+/* TODO: comment explaining what we're doing here */
+extern void IRQ074_Handler(void);
+Z_ISR_DECLARE(74, ISR_FLAG_DIRECT, IRQ074_Handler, 0);
+#endif

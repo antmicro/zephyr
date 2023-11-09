@@ -1,0 +1,45 @@
+# Copyright (c) 2023 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig WIFI_SIWG917
+	bool "SiWG917 SoC WiFi support"
+	default y
+	depends on DT_HAS_SILABS_SIWG917_WIFI_ENABLED
+	select CMSIS_RTOS_V2
+	select THREAD_NAME
+	select THREAD_STACK_INFO
+	select THREAD_MONITOR
+	select INIT_STACKS
+	select WIFI_OFFLOAD
+	select NET_L2_WIFI_MGMT
+	help
+	  Enable SiWG917 SoC WiFi support.
+
+if WIFI_SIWG917
+
+config NET_TCP_WORKQ_STACK_SIZE
+	default 2048
+
+config SIWG917_AP_MODE
+	bool "Wifi Access Point mode"
+
+config SIWG917_CLIENT_MODE
+	bool "Wifi Client mode"
+	default y
+
+config NET_RX_STACK_SIZE
+	default 2048
+
+config NET_MGMT_EVENT_STACK_SIZE
+	default 2048
+
+config WIFI_SIWG917_MAX_PACKET_SIZE
+	int "Maximum size of a packet, in bytes"
+	default 1400
+
+config WIFI_SIWG91_OFFLOAD_MAX_SOCKETS
+	int "Maximum number of sockets that can be managed"
+	default 10
+
+endif # WIFI_SIWG917

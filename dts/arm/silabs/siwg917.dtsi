@@ -32,6 +32,11 @@
 		reg = <0x400 DT_SIZE_K(196)>;
 	};
 
+	wifi: wifi {
+		compatible = "silabs,siwg917-wifi";
+		status = "disabled";
+	};
+
 	soc {
 		uart0: uart@44000000 {
 			reg = <0x44000000 0x1000>;

@@ -14,6 +14,17 @@ MEMORY
 
 SECTIONS
 {
+	/* TODO: don't hardcode the size! */
+	co_stack_size = 0x3000;
+	.co_stack :
+	{
+		__co_stack_limit = .;
+		KEEP(*(.co_stack*))
+		. = ALIGN(4);
+		. += co_stack_size;
+		__co_stack_top = .;
+	} > RAM
+
 	.common_tcm_code :
 	{
 		*(.common_tcm_code*)
@@ -28,4 +39,5 @@ SECTIONS
 	{
 		*(.udma_addr1*)
 	} > udma1 AT> FLASH
+
 }

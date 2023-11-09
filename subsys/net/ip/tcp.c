@@ -6,6 +6,9 @@
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(net_tcp, CONFIG_NET_TCP_LOG_LEVEL);
+#ifndef ENODATA
+#define     ENODATA         61
+#endif
 
 #include <stdarg.h>
 #include <stdio.h>

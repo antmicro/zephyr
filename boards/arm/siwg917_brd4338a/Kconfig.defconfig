@@ -7,4 +7,25 @@ if BOARD_SIWG917_BRD4338A
 config BOARD
 	default "siwg917_brd4338a"
 
+if WIFI
+config NUM_PREEMPT_PRIORITIES
+	default 56
+
+config SYS_CLOCK_TICKS_PER_SEC
+	default 1000
+
+config CMSIS_V2_THREAD_MAX_STACK_SIZE
+	default 2048
+
+config CMSIS_V2_THREAD_DYNAMIC_MAX_COUNT
+	default 10
+
+config CMSIS_V2_THREAD_DYNAMIC_STACK_SIZE
+	default 2048
+
+config NET_MGMT_EVENT_QUEUE_SIZE
+	default 10
+endif # WIFI
+
+
 endif # BOARD_SIWG917_BRD4338A
