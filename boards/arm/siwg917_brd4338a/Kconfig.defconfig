@@ -19,6 +19,13 @@ endchoice
 config HEAP_MEM_POOL_SIZE
 	default 1024
 
+config COMMON_LIBC_MALLOC_ARENA_SIZE
+	default 4096
+
+endif # BT
+
+if WIFI
+
 config NUM_PREEMPT_PRIORITIES
 	default 56
 
@@ -37,6 +44,9 @@ config CMSIS_V2_THREAD_DYNAMIC_STACK_SIZE
 config COMMON_LIBC_MALLOC_ARENA_SIZE
 	default 4096
 
-endif # BT
+config NET_MGMT_EVENT_QUEUE_SIZE
+	default 10
+
+endif # WIFI
 
 endif # BOARD_SIWG917_BRD4338A

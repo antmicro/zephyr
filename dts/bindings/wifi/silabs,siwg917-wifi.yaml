@@ -1,0 +1,7 @@
+# Copyright (c) 2023 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+description: SiLabs SiWG917 SoC WiFi
+
+compatible: "silabs,siwg917-wifi"
