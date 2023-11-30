@@ -22,6 +22,9 @@ config HEAP_MEM_POOL_SIZE
 config COMMON_LIBC_MALLOC_ARENA_SIZE
 	default 4096
 
+config NUM_PREEMPT_PRIORITIES
+	default 56
+
 endif # BT
 
 if WIFI
