@@ -10,53 +10,319 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/pinctrl.h>
+#include <zephyr/device.h>
+#include <zephyr/irq.h>
+#include <stdint.h>
+
+#include "sl_si91x_peripheral_i2c.h"
+
+#define TX_ABRT_7B_ADDR_NOACK (1UL << 0)
+#define MAX_7BIT_ADDRESS (1 << 7) - 1
+
+#define READ_BIT BIT(8)
+#define STOP_BIT BIT(9)
+
+#define SIWX917_I2C_STATUS_BUSY                   0x01
+#define SIWX917_I2C_STATUS_OK                     0x02
+#define SIWX917_I2C_STATUS_FAIL                   0x03
+#define SIWX917_I2C_STATUS_INACTIVE               0x04
+
+#define I2C_STANDARD_MODE_CLOCK_FREQUENCY    MHZ(32)
+#define I2C_FAST_MODE_CLOCK_FREQUENCY        MHZ(32)
+#define I2C_FAST_PLUS_MODE_CLOCK_FREQUENCY   MHZ(80)
+#define I2C_HIGH_SPEED_MODE_CLOCK_FREQUENCY  MHZ(80)
+
+#define REFERENCE_CLOCK_FREQUENCY            MHZ(32)
+#define HIGH_SPEED_REFERENCE_CLOCK_FREQUENCY MHZ(40)
 
 struct i2c_siwx917_config {
 	const struct pinctrl_dev_config *pcfg;
+	uint32_t base;
+	void (*irq_config_func)(const struct device *dev);
+};
+
+struct i2c_siwx917_current_transfer {
+	struct i2c_msg *msgs;
+	uint8_t *curr_buf;
+	uint8_t curr_len;
+	uint8_t nr_msgs;
+	uint8_t addr;
+	uint8_t status;
 };
 
 struct i2c_siwx917_data {
+	struct k_sem completion;
+	struct i2c_siwx917_current_transfer transfer;
+	I2C0_Type* i2c_periph;
 };
-
-static int i2c_siwx917_read(const struct device *dev, struct i2c_msg *msg, uint16_t addr)
-{
-	printk("%s\n", __func__);
-
-	return 0;
-}
-
-static int i2c_siwx917_write(const struct device *dev, struct i2c_msg *msg, uint16_t addr)
-{
-	printk("%s\n", __func__);
-
-	return 0;
-}
 
 static int i2c_siwx917_configure(const struct device *dev, uint32_t dev_config)
 {
-	printk("%s\n", __func__);
+	struct i2c_siwx917_data *data = dev->data;
+	uint32_t referece_clock = REFERENCE_CLOCK_FREQUENCY;
+	sl_i2c_init_params_t i2c_config = {
+		.mode = SL_I2C_LEADER_MODE,
+	};
 
+	switch (I2C_SPEED_GET(dev_config)) {
+	case I2C_SPEED_DT:
+		i2c_config.freq = I2C_STANDARD_MODE_CLOCK_FREQUENCY;
+		i2c_config.clhr = SL_I2C_STANDARD_BUS_SPEED;
+		break;
+	case I2C_SPEED_STANDARD:
+		i2c_config.freq = I2C_STANDARD_MODE_CLOCK_FREQUENCY;
+		i2c_config.clhr = SL_I2C_STANDARD_BUS_SPEED;
+		break;
+	case I2C_SPEED_FAST:
+		i2c_config.freq = I2C_FAST_MODE_CLOCK_FREQUENCY;
+		i2c_config.clhr = SL_I2C_FAST_BUS_SPEED;
+		break;
+	case I2C_SPEED_FAST_PLUS:
+		i2c_config.freq = I2C_FAST_PLUS_MODE_CLOCK_FREQUENCY;
+		i2c_config.clhr = SL_I2C_FAST_PLUS_BUS_SPEED;
+		break;
+	case I2C_SPEED_HIGH:
+		i2c_config.freq = I2C_HIGH_SPEED_MODE_CLOCK_FREQUENCY;
+		i2c_config.clhr = SL_I2C_HIGH_BUS_SPEED;
+		referece_clock = HIGH_SPEED_REFERENCE_CLOCK_FREQUENCY;
+		break;
+	default:
+		return -EINVAL;
+	}
+	RSI_CLK_M4SocClkConfig(M4CLK, M4_ULPREFCLK, 0);
+	RSI_CLK_SetSocPllFreq(M4CLK, i2c_config.freq, referece_clock);
+	RSI_CLK_M4SocClkConfig(M4CLK, M4_SOCPLLCLK, 0);
+
+	sl_si91x_i2c_init(data->i2c_periph, &i2c_config);
 	return 0;
+}
+
+static void i2c_siwx917_read_msg(const struct device *dev, struct i2c_msg *msg, uint16_t addr) {
+	struct i2c_siwx917_data *data = dev->data;
+
+	sl_si91x_i2c_set_rx_threshold(data->i2c_periph, 0);
+	sl_si91x_i2c_enable(data->i2c_periph);
+	sl_si91x_i2c_control_direction(data->i2c_periph, SL_I2C_READ_MASK);
+	sl_si91x_i2c_set_interrupts(data->i2c_periph, SL_I2C_EVENT_RECEIVE_FULL | SL_I2C_EVENT_TRANSMIT_ABORT);
+	sl_si91x_i2c_enable_interrupts(data->i2c_periph, 0);
+}
+
+static void i2c_siwx917_write_msg(const struct device *dev, struct i2c_msg *msg, uint16_t addr) {
+	struct i2c_siwx917_data *data = dev->data;
+
+	sl_si91x_i2c_set_tx_threshold(data->i2c_periph, 0);
+	sl_si91x_i2c_enable(data->i2c_periph);
+	sl_si91x_i2c_set_interrupts(data->i2c_periph, SL_I2C_EVENT_TRANSMIT_EMPTY | SL_I2C_EVENT_TRANSMIT_ABORT);
+	sl_si91x_i2c_enable_interrupts(data->i2c_periph, 0);
+}
+
+static void i2c_siwx917_transfer_msg(const struct device *dev, struct i2c_msg *msg, uint16_t addr)
+{
+	struct i2c_siwx917_data *data = dev->data;
+	bool is_10bit_addr = false;
+	if (addr > MAX_7BIT_ADDRESS) {
+		is_10bit_addr = true;
+	}
+
+	printk("%s: len: %d is_10bit_addr: %d msg_flags: 0x%x\n", __func__, msg->len, is_10bit_addr, msg->flags);
+	data->transfer.curr_buf = msg->buf;
+	data->transfer.curr_len = msg->len;
+	data->transfer.addr = addr;
+	data->transfer.status = SIWX917_I2C_STATUS_BUSY;
+
+
+	sl_si91x_i2c_disable_interrupts(data->i2c_periph, 0);
+	sl_si91x_i2c_disable(data->i2c_periph);
+	sl_si91x_i2c_set_follower_address(data->i2c_periph, addr, is_10bit_addr);
+
+	if (msg->flags & I2C_MSG_READ) {
+		i2c_siwx917_read_msg(dev, msg, addr);
+	} else {
+		i2c_siwx917_write_msg(dev, msg, addr);
+	}
 }
 
 static int i2c_siwx917_transfer(const struct device *dev, struct i2c_msg *msgs, uint8_t num_msgs,
 			      uint16_t addr)
 {
-	printk("%s\n", __func__);
+	struct i2c_siwx917_data *data = dev->data;
+	int ret = 0;
 
-	return 0;
+	printk("%s: addr: %#x\n", __func__, addr);
+
+	data->transfer.msgs = msgs;
+	data->transfer.nr_msgs = num_msgs;
+
+	for (uint8_t i = 0; i < num_msgs; ++i) {
+		i2c_siwx917_transfer_msg(dev, &msgs[i], addr);
+		k_sem_take(&data->completion, K_FOREVER);
+		if (data->transfer.status == SIWX917_I2C_STATUS_FAIL) {
+			return -EIO;
+		}
+	}
+
+	return ret;
+}
+
+static void handle_leader_transmit_irq(const struct device *dev)
+{
+	struct i2c_siwx917_data *data = dev->data;
+	if (data->transfer.curr_len > 0) {
+		printk("%s: curr_len: 0x%x curr_byte: 0x%x\n", __func__, data->transfer.curr_len, data->transfer.curr_buf[0]);
+	} else {
+		printk("%s: curr_len: 0x%x\n", __func__, data->transfer.curr_len);
+	}
+	if (data->transfer.curr_len > 0) {
+		if (data->transfer.curr_len == 1) {
+			data->i2c_periph->IC_DATA_CMD = (uint32_t)*data->transfer.curr_buf | STOP_BIT;
+		} else {
+			sl_si91x_i2c_tx(data->i2c_periph, *data->transfer.curr_buf);
+		}
+		data->transfer.curr_buf++;
+		data->transfer.curr_len--;
+	} else {
+		sl_si91x_i2c_clear_interrupts(data->i2c_periph, SL_I2C_EVENT_TRANSMIT_EMPTY);
+		sl_si91x_i2c_disable_interrupts(data->i2c_periph, 0);
+		k_sem_give(&data->completion);
+	}
+}
+
+static void handle_leader_receive_irq(const struct device *dev)
+{
+	struct i2c_siwx917_data *data = dev->data;
+	printk("%s: curr_len: 0x%x\n", __func__, data->transfer.curr_len);
+	if (data->transfer.curr_len > 0) {
+		*data->transfer.curr_buf = data->i2c_periph->IC_DATA_CMD_b.DAT;
+		data->transfer.curr_buf++;
+		data->transfer.curr_len--;
+		if (data->transfer.curr_len == 0) {
+			data->i2c_periph->IC_DATA_CMD = READ_BIT | STOP_BIT;
+		}
+		if (data->transfer.curr_len > 0) {
+			data->i2c_periph->IC_DATA_CMD = READ_BIT;
+		}
+	}
+	if (data->transfer.curr_len == 0) {
+		sl_si91x_i2c_clear_interrupts(data->i2c_periph, SL_I2C_EVENT_RECEIVE_FULL);
+		sl_si91x_i2c_disable_interrupts(data->i2c_periph, 0);
+		k_sem_give(&data->completion);
+	}
 }
 
 static int i2c_siwx917_init(const struct device *dev)
 {
 	printk("%s\n", __func__);
-
-	const struct i2c_siwx917_config *config = dev->config;
 	int ret = 0;
-
+	struct i2c_siwx917_data *data = dev->data;
+	const struct i2c_siwx917_config *config = dev->config;
+	data->i2c_periph = ((I2C0_Type*) config->base);
+	sl_si91x_i2c_reset(data->i2c_periph);
+	k_sem_init(&data->completion, 0, 1);
+	i2c_siwx917_configure(dev, I2C_SPEED_DT << I2C_SPEED_SHIFT);
 	ret = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
 
 	return ret;
+}
+
+static void i2c_siwx917_irq(const struct device *dev)
+{
+	struct i2c_siwx917_data *data = dev->data;
+	uint32_t status = 0;
+	status = sl_si91x_i2c_get_pending_interrupts(data->i2c_periph);
+	printk("%s: 0x%x\n", __func__, status);
+	if (status & SL_I2C_EVENT_TRANSMIT_ABORT) {
+		uint32_t tx_abrt = data->i2c_periph->IC_TX_ABRT_SOURCE;
+		printk("%s: tx_abrt: %d\n", __func__, tx_abrt);
+		if (tx_abrt & (TX_ABRT_7B_ADDR_NOACK |
+					SL_I2C_ABORT_7B_ADDRESS_NOACK |
+					SL_I2C_ABORT_10B_ADDRESS1_NOACK |
+					SL_I2C_ABORT_10B_ADDRESS2_NOACK |
+					SL_I2C_ABORT_TX_DATA_NOACK)) {
+			data->transfer.status = SIWX917_I2C_STATUS_FAIL;
+			data->i2c_periph->IC_DATA_CMD_b.STOP = 0x1;
+		}
+		if (tx_abrt & SL_I2C_ABORT_GENERAL_CALL_NOACK) {
+			uint32_t clear = data->i2c_periph->IC_CLR_GEN_CALL_b.CLR_GEN_CALL;
+		}
+		if (tx_abrt & SL_I2C_ABORT_GENERAL_CALL_READ) {
+			uint32_t clear = data->i2c_periph->IC_CLR_GEN_CALL_b.CLR_GEN_CALL;
+		}
+		if (tx_abrt & SL_I2C_ABORT_HIGH_SPEED_ACK) {
+		}
+		if (tx_abrt & SL_I2C_ABORT_START_BYTE_ACK) {
+		}
+		if (tx_abrt & SL_I2C_ABORT_HIGH_SPEED_NO_RESTART) {
+		}
+		if (tx_abrt & SL_I2C_ABORT_START_BYTE_NO_RESTART) {
+		}
+		if (tx_abrt & SL_I2C_ABORT_10B_READ_NO_RESTART) {
+		}
+		if (tx_abrt & SL_I2C_ABORT_MASTER_DISABLED) {
+		}
+		if (tx_abrt & SL_I2C_ABORT_MASTER_ARBITRATION_LOST) {
+		}
+		if (tx_abrt & SL_I2C_ABORT_SLAVE_ARBITRATION_LOST) {
+		}
+		if (tx_abrt & SL_I2C_TX_TX_FLUSH_CNT) {
+		}
+		if (tx_abrt & SL_I2C_ABORT_USER_ABORT) {
+		}
+		if (tx_abrt & SL_I2C_ABORT_SDA_STUCK_AT_LOW) {
+			data->i2c_periph->IC_ENABLE_b.SDA_STUCK_RECOVERY_ENABLE = 0x1;
+		}
+		uint32_t clear = data->i2c_periph->IC_CLR_INTR;
+		sl_si91x_i2c_disable_interrupts(data->i2c_periph, SL_I2C_EVENT_TRANSMIT_EMPTY);
+		k_sem_give(&data->completion);
+	}
+	if (status & (SL_I2C_EVENT_SCL_STUCK_AT_LOW)) {
+		uint32_t clear = data->i2c_periph->IC_CLR_INTR;
+		return;
+	}
+	if (status & (SL_I2C_EVENT_MST_ON_HOLD)) {
+		uint32_t clear = data->i2c_periph->IC_CLR_INTR;
+		return;
+	}
+	if (status & (SL_I2C_EVENT_START_DETECT)) {
+		uint32_t clear = data->i2c_periph->IC_CLR_START_DET_b.CLR_START_DET;
+		return;
+	}
+	if (status & (SL_I2C_EVENT_STOP_DETECT)) {
+		uint32_t clear     = data->i2c_periph->IC_CLR_STOP_DET_b.CLR_STOP_DET;
+		uint32_t maskReg   = 0;
+		maskReg            = data->i2c_periph->IC_INTR_MASK;
+		data->i2c_periph->IC_INTR_MASK = (maskReg & (~SL_I2C_EVENT_RECEIVE_FULL));
+		return;
+	}
+	if (status & (SL_I2C_EVENT_ACTIVITY_ON_BUS)) {
+		uint32_t clear = data->i2c_periph->IC_CLR_ACTIVITY_b.CLR_ACTIVITY;
+		return;
+	}
+	if (status & SL_I2C_EVENT_TRANSMIT_EMPTY) {
+		handle_leader_transmit_irq(dev);
+	}
+	if (status & SL_I2C_EVENT_RECEIVE_FULL) {
+		handle_leader_receive_irq(dev);
+	}
+	if (status & (SL_I2C_EVENT_RECEIVE_UNDER)) {
+		uint32_t clear = data->i2c_periph->IC_CLR_RX_UNDER_b.CLR_RX_UNDER;
+		return;
+	}
+	if (status & (SL_I2C_EVENT_RECEIVE_OVER)) {
+		uint32_t clear = data->i2c_periph->IC_CLR_RX_OVER_b.CLR_RX_OVER;
+		return;
+	}
+	if (status & (SL_I2C_EVENT_RECEIVE_DONE)) {
+		sl_si91x_i2c_clear_interrupts(data->i2c_periph, SL_I2C_EVENT_RECEIVE_DONE);
+		return;
+	}
+	if (status & (SL_I2C_EVENT_GENERAL_CALL)) {
+		sl_si91x_i2c_clear_interrupts(data->i2c_periph, SL_I2C_EVENT_GENERAL_CALL);
+		return;
+	}
+	if (status & (SL_I2C_EVENT_RESTART_DET)) {
+		sl_si91x_i2c_clear_interrupts(data->i2c_periph, SL_I2C_EVENT_RESTART_DET);
+		return;
+	}
 }
 
 static struct i2c_driver_api i2c_siwx917_driver_api = {
@@ -64,14 +330,24 @@ static struct i2c_driver_api i2c_siwx917_driver_api = {
 	.transfer = i2c_siwx917_transfer,
 };
 
-#define SIWX917_I2C_DEFINE(n)										\
-	PINCTRL_DT_INST_DEFINE(n);									\
-	static struct i2c_siwx917_data i2c_siwx917_data##n;						\
-	static const struct i2c_siwx917_config i2c_siwx917_config##n = {				\
-		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),						\
-	};												\
-	I2C_DEVICE_DT_INST_DEFINE(n, i2c_siwx917_init, NULL, &i2c_siwx917_data##n,			\
-				  &i2c_siwx917_config##n, POST_KERNEL, CONFIG_I2C_INIT_PRIORITY,	\
-				  &i2c_siwx917_driver_api);
+#define SIWX917_I2C_DEFINE(n)									\
+PINCTRL_DT_INST_DEFINE(n);									\
+static void i2c_siwx917_irq_config_##n(const struct device *dev)				\
+{												\
+	IRQ_CONNECT(DT_INST_IRQN(n),								\
+		    DT_INST_IRQ(n, priority),							\
+		    i2c_siwx917_irq, DEVICE_DT_INST_GET(n), 0);					\
+												\
+	irq_enable(DT_INST_IRQN(n));								\
+}												\
+static struct i2c_siwx917_data i2c_siwx917_data##n;						\
+static const struct i2c_siwx917_config i2c_siwx917_config##n = {				\
+	.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),						\
+	.irq_config_func = i2c_siwx917_irq_config_##n,						\
+	.base = DT_INST_REG_ADDR(n)								\
+};												\
+I2C_DEVICE_DT_INST_DEFINE(n, i2c_siwx917_init, NULL, &i2c_siwx917_data##n,			\
+			&i2c_siwx917_config##n, POST_KERNEL, CONFIG_I2C_INIT_PRIORITY,		\
+			&i2c_siwx917_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(SIWX917_I2C_DEFINE)
