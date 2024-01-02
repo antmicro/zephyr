@@ -22,10 +22,8 @@
 #define READ_BIT BIT(8)
 #define STOP_BIT BIT(9)
 
-#define SIWX917_I2C_STATUS_BUSY                   0x01
-#define SIWX917_I2C_STATUS_OK                     0x02
-#define SIWX917_I2C_STATUS_FAIL                   0x03
-#define SIWX917_I2C_STATUS_INACTIVE               0x04
+#define SIWX917_I2C_STATUS_OK                     0x01
+#define SIWX917_I2C_STATUS_FAIL                   0x02
 
 #define I2C_STANDARD_MODE_CLOCK_FREQUENCY    MHZ(32)
 #define I2C_FAST_MODE_CLOCK_FREQUENCY        MHZ(32)
@@ -46,6 +44,7 @@ struct i2c_siwx917_current_transfer {
 	uint8_t *curr_buf;
 	uint8_t curr_len;
 	uint8_t nr_msgs;
+	uint8_t flags;
 	uint8_t addr;
 	uint8_t status;
 };
@@ -103,7 +102,7 @@ static void i2c_siwx917_read_msg(const struct device *dev, struct i2c_msg *msg, 
 	sl_si91x_i2c_set_rx_threshold(data->i2c_periph, 0);
 	sl_si91x_i2c_enable(data->i2c_periph);
 	sl_si91x_i2c_control_direction(data->i2c_periph, SL_I2C_READ_MASK);
-	sl_si91x_i2c_set_interrupts(data->i2c_periph, SL_I2C_EVENT_RECEIVE_FULL | SL_I2C_EVENT_TRANSMIT_ABORT);
+	sl_si91x_i2c_set_interrupts(data->i2c_periph, SL_I2C_EVENT_RECEIVE_FULL | SL_I2C_EVENT_TRANSMIT_ABORT | SL_I2C_EVENT_STOP_DETECT);
 	sl_si91x_i2c_enable_interrupts(data->i2c_periph, 0);
 }
 
@@ -112,24 +111,20 @@ static void i2c_siwx917_write_msg(const struct device *dev, struct i2c_msg *msg,
 
 	sl_si91x_i2c_set_tx_threshold(data->i2c_periph, 0);
 	sl_si91x_i2c_enable(data->i2c_periph);
-	sl_si91x_i2c_set_interrupts(data->i2c_periph, SL_I2C_EVENT_TRANSMIT_EMPTY | SL_I2C_EVENT_TRANSMIT_ABORT);
+	sl_si91x_i2c_set_interrupts(data->i2c_periph, SL_I2C_EVENT_TRANSMIT_EMPTY | SL_I2C_EVENT_TRANSMIT_ABORT | SL_I2C_EVENT_STOP_DETECT);
 	sl_si91x_i2c_enable_interrupts(data->i2c_periph, 0);
 }
 
 static void i2c_siwx917_transfer_msg(const struct device *dev, struct i2c_msg *msg, uint16_t addr)
 {
 	struct i2c_siwx917_data *data = dev->data;
-	bool is_10bit_addr = false;
-	if (addr > MAX_7BIT_ADDRESS) {
-		is_10bit_addr = true;
-	}
+	bool is_10bit_addr = addr > MAX_7BIT_ADDRESS;
 
-	printk("%s: len: %d is_10bit_addr: %d msg_flags: 0x%x\n", __func__, msg->len, is_10bit_addr, msg->flags);
 	data->transfer.curr_buf = msg->buf;
 	data->transfer.curr_len = msg->len;
 	data->transfer.addr = addr;
-	data->transfer.status = SIWX917_I2C_STATUS_BUSY;
-
+	data->transfer.flags = msg->flags;
+	data->transfer.status = SIWX917_I2C_STATUS_OK;
 
 	sl_si91x_i2c_disable_interrupts(data->i2c_periph, 0);
 	sl_si91x_i2c_disable(data->i2c_periph);
@@ -148,14 +143,12 @@ static int i2c_siwx917_transfer(const struct device *dev, struct i2c_msg *msgs, 
 	struct i2c_siwx917_data *data = dev->data;
 	int ret = 0;
 
-	printk("%s: addr: %#x\n", __func__, addr);
-
 	data->transfer.msgs = msgs;
 	data->transfer.nr_msgs = num_msgs;
 
 	for (uint8_t i = 0; i < num_msgs; ++i) {
 		i2c_siwx917_transfer_msg(dev, &msgs[i], addr);
-		k_sem_take(&data->completion, K_FOREVER);
+		k_sem_take(&data->completion, K_MSEC(500));
 		if (data->transfer.status == SIWX917_I2C_STATUS_FAIL) {
 			return -EIO;
 		}
@@ -168,29 +161,25 @@ static void handle_leader_transmit_irq(const struct device *dev)
 {
 	struct i2c_siwx917_data *data = dev->data;
 	if (data->transfer.curr_len > 0) {
-		printk("%s: curr_len: 0x%x curr_byte: 0x%x\n", __func__, data->transfer.curr_len, data->transfer.curr_buf[0]);
-	} else {
-		printk("%s: curr_len: 0x%x\n", __func__, data->transfer.curr_len);
-	}
-	if (data->transfer.curr_len > 0) {
 		if (data->transfer.curr_len == 1) {
 			data->i2c_periph->IC_DATA_CMD = (uint32_t)*data->transfer.curr_buf | STOP_BIT;
+			sl_si91x_i2c_clear_interrupts(data->i2c_periph, SL_I2C_EVENT_TRANSMIT_EMPTY);
 		} else {
 			sl_si91x_i2c_tx(data->i2c_periph, *data->transfer.curr_buf);
 		}
 		data->transfer.curr_buf++;
 		data->transfer.curr_len--;
 	} else {
+		if (data->transfer.flags & I2C_MSG_STOP) {
+			sl_si91x_i2c_stop_cmd(data->i2c_periph);
+		}
 		sl_si91x_i2c_clear_interrupts(data->i2c_periph, SL_I2C_EVENT_TRANSMIT_EMPTY);
-		sl_si91x_i2c_disable_interrupts(data->i2c_periph, 0);
-		k_sem_give(&data->completion);
 	}
 }
 
 static void handle_leader_receive_irq(const struct device *dev)
 {
 	struct i2c_siwx917_data *data = dev->data;
-	printk("%s: curr_len: 0x%x\n", __func__, data->transfer.curr_len);
 	if (data->transfer.curr_len > 0) {
 		*data->transfer.curr_buf = data->i2c_periph->IC_DATA_CMD_b.DAT;
 		data->transfer.curr_buf++;
@@ -204,19 +193,15 @@ static void handle_leader_receive_irq(const struct device *dev)
 	}
 	if (data->transfer.curr_len == 0) {
 		sl_si91x_i2c_clear_interrupts(data->i2c_periph, SL_I2C_EVENT_RECEIVE_FULL);
-		sl_si91x_i2c_disable_interrupts(data->i2c_periph, 0);
-		k_sem_give(&data->completion);
 	}
 }
 
 static int i2c_siwx917_init(const struct device *dev)
 {
-	printk("%s\n", __func__);
 	int ret = 0;
 	struct i2c_siwx917_data *data = dev->data;
 	const struct i2c_siwx917_config *config = dev->config;
 	data->i2c_periph = ((I2C0_Type*) config->base);
-	sl_si91x_i2c_reset(data->i2c_periph);
 	k_sem_init(&data->completion, 0, 1);
 	i2c_siwx917_configure(dev, I2C_SPEED_DT << I2C_SPEED_SHIFT);
 	ret = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
@@ -229,10 +214,8 @@ static void i2c_siwx917_irq(const struct device *dev)
 	struct i2c_siwx917_data *data = dev->data;
 	uint32_t status = 0;
 	status = sl_si91x_i2c_get_pending_interrupts(data->i2c_periph);
-	printk("%s: 0x%x\n", __func__, status);
 	if (status & SL_I2C_EVENT_TRANSMIT_ABORT) {
 		uint32_t tx_abrt = data->i2c_periph->IC_TX_ABRT_SOURCE;
-		printk("%s: tx_abrt: %d\n", __func__, tx_abrt);
 		if (tx_abrt & (TX_ABRT_7B_ADDR_NOACK |
 					SL_I2C_ABORT_7B_ADDRESS_NOACK |
 					SL_I2C_ABORT_10B_ADDRESS1_NOACK |
@@ -272,7 +255,6 @@ static void i2c_siwx917_irq(const struct device *dev)
 		}
 		uint32_t clear = data->i2c_periph->IC_CLR_INTR;
 		sl_si91x_i2c_disable_interrupts(data->i2c_periph, SL_I2C_EVENT_TRANSMIT_EMPTY);
-		k_sem_give(&data->completion);
 	}
 	if (status & (SL_I2C_EVENT_SCL_STUCK_AT_LOW)) {
 		uint32_t clear = data->i2c_periph->IC_CLR_INTR;
@@ -291,6 +273,8 @@ static void i2c_siwx917_irq(const struct device *dev)
 		uint32_t maskReg   = 0;
 		maskReg            = data->i2c_periph->IC_INTR_MASK;
 		data->i2c_periph->IC_INTR_MASK = (maskReg & (~SL_I2C_EVENT_RECEIVE_FULL));
+		sl_si91x_i2c_disable_interrupts(data->i2c_periph, 0);
+		k_sem_give(&data->completion);
 		return;
 	}
 	if (status & (SL_I2C_EVENT_ACTIVITY_ON_BUS)) {
