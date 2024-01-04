@@ -309,9 +309,19 @@ static void i2c_siwx917_irq(const struct device *dev)
 	}
 }
 
+static int i2c_siwx917_recover_bus(const struct device *dev)
+{
+	struct i2c_siwx917_data *data = dev->data;
+
+	sl_si91x_i2c_reset(data->i2c_periph);
+	i2c_siwx917_configure(dev, I2C_SPEED_DT);
+	return 0;
+}
+
 static struct i2c_driver_api i2c_siwx917_driver_api = {
 	.configure = i2c_siwx917_configure,
 	.transfer = i2c_siwx917_transfer,
+	.recover_bus = i2c_siwx917_recover_bus,
 };
 
 #define SIWX917_I2C_DEFINE(n)									\
