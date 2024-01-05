@@ -6,17 +6,17 @@
 
 &pinctrl0 {
 	uart0_rx_default: uart0_rx_default {
-		pinmux = <0 29 2>;
+		pinmux = <0 0 29 2>;
 	};
 	uart0_tx_default: uart0_tx_default {
-		pinmux = <0 30 2>;
+		pinmux = <0 0 30 2>;
 	};
 
 	i2c2_scl_default: i2c2_scl_default {
-		pinmux = <0 7 4>;
+		pinmux = <1 0 7 4>;
 	};
 
 	i2c2_sda_default: i2c2_sda_default {
-		pinmux = <0 6 4>;
+		pinmux = <1 0 6 4>;
 	};
 };

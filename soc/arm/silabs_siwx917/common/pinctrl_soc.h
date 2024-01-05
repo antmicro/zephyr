@@ -10,6 +10,7 @@
 #include <zephyr/types.h>
 
 typedef struct pinctrl_soc_pin_t {
+	uint8_t base;
 	uint8_t port;
 	uint8_t pin;
 	uint8_t mux;
@@ -17,9 +18,10 @@ typedef struct pinctrl_soc_pin_t {
 
 #define SILABS_SIWX917_DT_PIN(node_id)				\
 	{							\
-		.port = DT_PROP_BY_IDX(node_id, pinmux, 0),	\
-		.pin  = DT_PROP_BY_IDX(node_id, pinmux, 1),	\
-		.mux  = DT_PROP_BY_IDX(node_id, pinmux, 2),	\
+		.base = DT_PROP_BY_IDX(node_id, pinmux, 0),	\
+		.port = DT_PROP_BY_IDX(node_id, pinmux, 1),	\
+		.pin  = DT_PROP_BY_IDX(node_id, pinmux, 2),	\
+		.mux  = DT_PROP_BY_IDX(node_id, pinmux, 3),	\
 	},
 
 #define Z_PINCTRL_STATE_PIN_INIT(node_id, prop, idx)		\
