@@ -6,6 +6,7 @@
 
 #include <arm/armv7-m.dtsi>
 #include <zephyr/dt-bindings/i2c/i2c.h>
+#include <zephyr/dt-bindings/spi/spi.h>
 
 / {
 	chosen {
@@ -59,6 +60,13 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "silabs,siwx917-i2c";
+		};
+
+		spi0: gspi@45030000 {
+			reg = <0x45030000 0x1000>;
+			compatible = "silabs,siwx917-spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 	};
 };
