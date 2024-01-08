@@ -1,0 +1,13 @@
+# Copyright (c) 2024 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: Apache-2.0
+
+description: Silicon Labs SiWx917 SPI
+
+compatible: "silabs,siwx917-spi"
+
+include: [spi-controller.yaml, pinctrl-device.yaml]
+
+properties:
+  reg:
+    required: true
+

@@ -1,0 +1,14 @@
+# Silicon Labs SiWx917 SPI
+#
+# Copyright (c) 2024 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+config SPI_SIWX917
+	bool "Silicon Labs SiWx917 SPI driver"
+	default y
+	depends on DT_HAS_SILABS_SIWX917_SPI_ENABLED
+	help
+	  Enable driver for Slicon Labs SiWx917 SoC SPI.
+
