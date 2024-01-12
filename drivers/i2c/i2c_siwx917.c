@@ -14,6 +14,9 @@
 #include <zephyr/irq.h>
 #include <stdint.h>
 
+#include "rsi_rom_ulpss_clk.h"
+#include "rsi_rom_egpio.h"
+#include "rsi_rom_clks.h"
 #include "sl_si91x_peripheral_i2c.h"
 
 #define TX_ABRT_7B_ADDR_NOACK (1UL << 0)
@@ -37,6 +40,7 @@ struct i2c_siwx917_config {
 	const struct pinctrl_dev_config *pcfg;
 	uint32_t base;
 	void (*irq_config_func)(const struct device *dev);
+	int (*pwr_func)(void);
 };
 
 struct i2c_siwx917_current_transfer {
@@ -202,6 +206,7 @@ static int i2c_siwx917_init(const struct device *dev)
 	struct i2c_siwx917_data *data = dev->data;
 	const struct i2c_siwx917_config *config = dev->config;
 	data->i2c_periph = ((I2C0_Type*) config->base);
+	config->pwr_func();
 	k_sem_init(&data->completion, 0, 1);
 	i2c_siwx917_configure(dev, I2C_SPEED_DT << I2C_SPEED_SHIFT);
 	ret = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
@@ -324,24 +329,43 @@ static struct i2c_driver_api i2c_siwx917_driver_api = {
 	.recover_bus = i2c_siwx917_recover_bus,
 };
 
-#define SIWX917_I2C_DEFINE(n)									\
-PINCTRL_DT_INST_DEFINE(n);									\
-static void i2c_siwx917_irq_config_##n(const struct device *dev)				\
-{												\
-	IRQ_CONNECT(DT_INST_IRQN(n),								\
-		    DT_INST_IRQ(n, priority),							\
-		    i2c_siwx917_irq, DEVICE_DT_INST_GET(n), 0);					\
-												\
-	irq_enable(DT_INST_IRQN(n));								\
-}												\
-static struct i2c_siwx917_data i2c_siwx917_data##n;						\
-static const struct i2c_siwx917_config i2c_siwx917_config##n = {				\
-	.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),						\
-	.irq_config_func = i2c_siwx917_irq_config_##n,						\
-	.base = DT_INST_REG_ADDR(n)								\
-};												\
-I2C_DEVICE_DT_INST_DEFINE(n, i2c_siwx917_init, NULL, &i2c_siwx917_data##n,			\
-			&i2c_siwx917_config##n, POST_KERNEL, CONFIG_I2C_INIT_PRIORITY,		\
+#define SIWX917_I2C_DEFINE(n)								\
+PINCTRL_DT_INST_DEFINE(n);								\
+static int pwr_on_siwx917_i2c_##n(void)							\
+{											\
+	switch (DT_INST_REG_ADDR(n)) {							\
+	case I2C0_BASE:									\
+		RSI_PS_M4ssPeriPowerUp(M4SS_PWRGATE_ULP_EFUSE_PERI);			\
+		break;									\
+	case I2C1_BASE:									\
+		RSI_PS_M4ssPeriPowerUp(M4SS_PWRGATE_ULP_EFUSE_PERI);			\
+		break;									\
+	case I2C2_BASE:									\
+		RSI_PS_UlpssPeriPowerUp(ULPSS_PWRGATE_ULP_I2C);				\
+		RSI_ULPSS_PeripheralEnable(ULPCLK, ULP_I2C_CLK, ENABLE_STATIC_CLK);	\
+		break;									\
+	default:									\
+		return -1;								\
+	}										\
+	return 0;									\
+}											\
+static void i2c_siwx917_irq_config_##n(const struct device *dev)			\
+{											\
+	IRQ_CONNECT(DT_INST_IRQN(n),							\
+		    DT_INST_IRQ(n, priority),						\
+		    i2c_siwx917_irq, DEVICE_DT_INST_GET(n), 0);				\
+											\
+	irq_enable(DT_INST_IRQN(n));							\
+}											\
+static struct i2c_siwx917_data i2c_siwx917_data##n;					\
+static const struct i2c_siwx917_config i2c_siwx917_config##n = {			\
+	.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n),					\
+	.irq_config_func = i2c_siwx917_irq_config_##n,					\
+	.pwr_func = pwr_on_siwx917_i2c_##n,						\
+	.base = DT_INST_REG_ADDR(n)							\
+};											\
+I2C_DEVICE_DT_INST_DEFINE(n, i2c_siwx917_init, NULL, &i2c_siwx917_data##n,		\
+			&i2c_siwx917_config##n, POST_KERNEL, CONFIG_I2C_INIT_PRIORITY,	\
 			&i2c_siwx917_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(SIWX917_I2C_DEFINE)
