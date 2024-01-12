@@ -65,6 +65,17 @@
 		spi0: gspi@45030000 {
 			reg = <0x45030000 0x1000>;
 			compatible = "silabs,siwx917-spi";
+			intf_pll_clk = <180000000>;
+			intf_pll_ref_clk = <40000000>;
+			soc_pll_clk = <20000000>;
+			soc_pll_ref_clk = <40000000>;
+			intf_pll_500_control_value = <0xD900>;
+			soc_pll_mm_count_limit = <0xA4>;
+			division_factor = <0>;
+			swap_read_data = <1>;
+			swap_write_data = <0>;
+			gspi_bitrate = <10000000>;
+			gspi_bit_width = <8>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};

@@ -18,21 +18,20 @@ LOG_MODULE_REGISTER(spi_silabs_siwx917);
 
 #include "sl_si91x_gspi.h"
 
-#define INTF_PLL_CLK            180000000
-#define INTF_PLL_REF_CLK        40000000
-#define SOC_PLL_CLK             20000000
-#define SOC_PLL_REF_CLK         40000000
-#define INTF_PLL_500_CTRL_VALUE 0xD900
-#define SOC_PLL_MM_COUNT_LIMIT  0xA4
-#define DVISION_FACTOR          0
-#define SWAP_READ_DATA          1
-#define SWAP_WRITE_DATA         0
-#define GSPI_BITRATE            10000000
-#define GSPI_BIT_WIDTH          8
-
 struct spi_siwx917_config {
 	uint32_t base;
 	uint32_t size;
+	uint32_t intf_pll_clk;
+	uint32_t intf_pll_ref_clk;
+	uint32_t soc_pll_clk;
+	uint32_t soc_pll_ref_clk;
+	uint32_t intf_pll_500_control_value;
+	uint32_t soc_pll_mm_count_limit;
+	uint32_t division_factor;
+	uint32_t swap_read_data;
+	uint32_t swap_write_data;
+	uint32_t gspi_bitrate;
+	uint32_t gspi_bit_width;
 };
 
 struct spi_siwx917_data {
@@ -120,24 +119,25 @@ static void callback_event(uint32_t event)
 static int spi_siwx917_init(const struct device *dev)
 {
 	struct spi_siwx917_data *data = dev->data;
+	const struct spi_siwx917_config *cfg = dev->config;
 	int ret = 0;
 
 	sl_gspi_clock_config_t clock_config = {
-		.soc_pll_mm_count_value = SOC_PLL_MM_COUNT_LIMIT,
-		.intf_pll_500_control_value = INTF_PLL_500_CTRL_VALUE,
-		.intf_pll_clock = INTF_PLL_CLK,
-		.intf_pll_reference_clock = INTF_PLL_REF_CLK,
-		.soc_pll_clock = SOC_PLL_CLK,
-		.soc_pll_reference_clock = SOC_PLL_REF_CLK,
-		.division_factor = DVISION_FACTOR,
+		.soc_pll_mm_count_value = cfg->soc_pll_mm_count_limit,
+		.intf_pll_500_control_value = cfg->intf_pll_500_control_value,
+		.intf_pll_clock = cfg->intf_pll_clk,
+		.intf_pll_reference_clock = cfg->intf_pll_ref_clk,
+		.soc_pll_clock = cfg->soc_pll_clk,
+		.soc_pll_reference_clock = cfg->soc_pll_ref_clk,
+		.division_factor = cfg->division_factor,
 	};
 	sl_gspi_control_config_t config = {
-		.bit_width = GSPI_BIT_WIDTH,
-		.bitrate = GSPI_BITRATE,
+		.bit_width = cfg->gspi_bit_width,
+		.bitrate = cfg->gspi_bitrate,
 		.clock_mode = SL_GSPI_MODE_0,
 		.slave_select_mode = SL_GSPI_MASTER_HW_OUTPUT,
-		.swap_read = SWAP_READ_DATA,
-		.swap_write = SWAP_WRITE_DATA,
+		.swap_read = cfg->swap_read_data,
+		.swap_write = cfg->swap_write_data,
 	};
 
 	sl_si91x_gspi_configure_clock(&clock_config);
@@ -158,16 +158,30 @@ static int spi_siwx917_init(const struct device *dev)
 extern void IRQ046_Handler(void);
 Z_ISR_DECLARE(46, ISR_FLAG_DIRECT, IRQ046_Handler, 0);
 
-#define SIWX917_SPI_INIT(n)										\
-	PINCTRL_DT_INST_DEFINE(n);									\
-	static struct spi_siwx917_data spi_siwx917_data##n = {						\
-		SPI_CONTEXT_INIT_LOCK(spi_siwx917_data##n, ctx),					\
-		SPI_CONTEXT_INIT_SYNC(spi_siwx917_data##n, ctx)};					\
-	static const struct spi_siwx917_config spi_siwx917_config##n = {				\
-		.base = DT_INST_REG_ADDR(n),								\
-		.size = DT_INST_REG_SIZE(n),								\
-	};												\
-	DEVICE_DT_INST_DEFINE(n, spi_siwx917_init, NULL, &spi_siwx917_data##n, &spi_siwx917_config##n,  \
-			      POST_KERNEL, CONFIG_SPI_INIT_PRIORITY, &spi_siwx917_driver_api);
+#define SPI_SIWX917_NODE(n)		DT_NODELABEL(spi##n)
+#define SIWX917_SPI_INIT(n)									\
+	PINCTRL_DT_INST_DEFINE(n);								\
+	static struct spi_siwx917_data spi_siwx917_data##n = {					\
+		SPI_CONTEXT_INIT_LOCK(spi_siwx917_data##n, ctx),				\
+		SPI_CONTEXT_INIT_SYNC(spi_siwx917_data##n, ctx)};				\
+	static const struct spi_siwx917_config spi_siwx917_config##n = {			\
+		.base = DT_INST_REG_ADDR(n),							\
+		.size = DT_INST_REG_SIZE(n),							\
+		.intf_pll_clk = DT_PROP(SPI_SIWX917_NODE(n), intf_pll_clk),			\
+		.intf_pll_ref_clk = DT_PROP(SPI_SIWX917_NODE(n), intf_pll_ref_clk),		\
+		.soc_pll_clk = DT_PROP(SPI_SIWX917_NODE(n), soc_pll_clk),			\
+		.soc_pll_ref_clk = DT_PROP(SPI_SIWX917_NODE(n), soc_pll_ref_clk),		\
+		.intf_pll_500_control_value = DT_PROP(SPI_SIWX917_NODE(n),			\
+				intf_pll_500_control_value),					\
+		.soc_pll_mm_count_limit = DT_PROP(SPI_SIWX917_NODE(n), soc_pll_mm_count_limit),	\
+		.division_factor = DT_PROP(SPI_SIWX917_NODE(n), division_factor),		\
+		.swap_read_data = DT_PROP(SPI_SIWX917_NODE(n), swap_read_data),			\
+		.swap_write_data = DT_PROP(SPI_SIWX917_NODE(n), swap_write_data),		\
+		.gspi_bitrate = DT_PROP(SPI_SIWX917_NODE(n), gspi_bitrate),			\
+		.gspi_bit_width = DT_PROP(SPI_SIWX917_NODE(n), gspi_bit_width),			\
+	};											\
+	DEVICE_DT_INST_DEFINE(n, spi_siwx917_init, NULL, &spi_siwx917_data##n,			\
+			&spi_siwx917_config##n, POST_KERNEL, CONFIG_SPI_INIT_PRIORITY,		\
+			&spi_siwx917_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(SIWX917_SPI_INIT)

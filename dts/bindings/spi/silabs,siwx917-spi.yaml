@@ -10,4 +10,36 @@ include: [spi-controller.yaml, pinctrl-device.yaml]
 properties:
   reg:
     required: true
-
+  intf_pll_clk:
+    required: true
+    type: int
+  intf_pll_ref_clk:
+    required: true
+    type: int
+  soc_pll_clk:
+    required: true
+    type: int
+  soc_pll_ref_clk:
+    required: true
+    type: int
+  intf_pll_500_control_value:
+    required: true
+    type: int
+  soc_pll_mm_count_limit:
+    required: true
+    type: int
+  division_factor:
+    required: true
+    type: int
+  swap_read_data:
+    required: true
+    type: int
+  swap_write_data:
+    required: true
+    type: int
+  gspi_bitrate:
+    required: true
+    type: int
+  gspi_bit_width:
+    required: true
+    type: int
