@@ -221,7 +221,7 @@ manifest:
       groups:
         - hal
     - name: hal_silabs
-      revision: 611aad5cb137771feec751c0357239375330fa52
+      revision: 78e2d7204128a56d5c98327a9e8a0a11b9988a80
       path: modules/hal/silabs
       remote: antmicro
       groups:
