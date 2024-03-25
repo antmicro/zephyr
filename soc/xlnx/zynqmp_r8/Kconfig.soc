@@ -1,0 +1,19 @@
+# Copyright (c) 2019 Lexmark International, Inc.
+# Copyright (c) 2019 Stephanos Ioannidis <root@stephanos.io>
+# Copyright (c) 2024 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_XILINX_ZYNQMP_R8
+	bool
+
+config SOC_XILINX_ZYNQMP_RPU_R8
+	bool
+	select SOC_XILINX_ZYNQMP_R8
+	help
+	  Xilinx ZynqMP RPU R8
+
+config SOC_FAMILY
+	default "xilinx_zynqmp_r8" if SOC_XILINX_ZYNQMP_R8
+
+config SOC
+	default "zynqmp_rpu_r8" if SOC_XILINX_ZYNQMP_RPU_R8

@@ -1,0 +1,4 @@
+family:
+- name: xilinx_zynqmp_r8
+  socs:
+  - name: zynqmp_rpu_r8
