@@ -1,0 +1,20 @@
+# Copyright (c) 2022 Linaro.
+# Copyright (c) 2024 Antmicro <www.antmicro.com>
+# SPDX-License-Identifier: Apache-2.0
+
+if BOARD_KV260_R8
+
+config BUILD_OUTPUT_BIN
+	default y
+
+config BOARD
+	default "board_kv260_r8"
+
+if USERSPACE
+
+config COMPILER_ISA_THUMB2
+	default n
+
+endif
+
+endif # BOARD_KV260_R8
