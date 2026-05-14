@@ -48,6 +48,7 @@ struct max3421e_data {
 	uint8_t mode;
 	uint8_t hxfr;
 	uint8_t hrsl;
+	uint8_t retires;
 	uint8_t skip_frames;
 };
 
@@ -56,6 +57,15 @@ struct max3421e_config {
 	struct gpio_dt_spec dt_int;
 	struct gpio_dt_spec dt_rst;
 };
+
+static bool max3421e_retry_if_timeout(struct max3421e_data *const priv, const uint8_t hrsl)
+{
+	if (HRSLT_IS_TIMEOUT(hrsl) && priv->retires++ < CONFIG_MAX3421E_MAX_TIMEOUT_RETRIES) {
+		return true;
+	}
+	priv->retires = 0;
+	return false;
+}
 
 static int max3421e_read_hirq(const struct device *dev,
 			      const uint8_t reg,
@@ -321,7 +331,10 @@ static int max3421e_xfer_control(const struct device *dev,
 	if (HRSLT_IS_NAK(hrsl)) {
 		return max3421e_hxfr_start(dev, priv->hxfr);
 	}
-
+	if (max3421e_retry_if_timeout(priv, hrsl)) {
+		LOG_WRN("CTRL Retry because of timeout");
+		return max3421e_hxfr_start(dev, priv->hxfr);
+	}
 
 	if (xfer->stage == UHC_CONTROL_STAGE_SETUP) {
 		LOG_DBG("Handle SETUP stage");
@@ -367,6 +380,10 @@ static int max3421e_xfer_bulk(const struct device *dev,
 
 	/* Just restart if device NAKed packet */
 	if (HRSLT_IS_NAK(hrsl)) {
+		return max3421e_hxfr_start(dev, priv->hxfr);
+	}
+	if (max3421e_retry_if_timeout(priv, hrsl)) {
+		LOG_WRN("BULK Retry because of timeout");
 		return max3421e_hxfr_start(dev, priv->hxfr);
 	}
 
@@ -554,6 +571,8 @@ static int max3421e_handle_hxfrdn(const struct device *dev)
 	switch (MAX3421E_HRSLT(hrsl)) {
 	case MAX3421E_HR_NAK:
 		break;
+	case MAX3421E_HR_TIMEOUT:
+		LOG_WRN("MAX3421E_HR_TIMEOUT");
 	case MAX3421E_HR_STALL:
 		max3421e_xfer_drop_active(dev, -EPIPE);
 		break;
