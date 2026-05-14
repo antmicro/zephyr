@@ -72,15 +72,26 @@ void uhc_xfer_return(const struct device *dev,
 		     const int err);
 
 /**
+ * @brief Reschedules the perioidc UHC transfer to it's net valid frame.
+ *
+ * @param[inout] xfer   Pointer to UHC transfer
+ * @param frame_number The current usb frame number
+ */
+void uhc_xfer_reschedule_periodic(const struct device *dev, struct uhc_transfer *const xfer,
+				  uint16_t frame_number);
+
+/**
  * @brief Helper to get next transfer to process.
  *
  * This is currently a draft, and simple picks a transfer
  * from the lists.
  *
  * @param[in] dev    Pointer to device struct of the driver instance
+ * @param frame_number The current usb frame number
+ *
  * @return pointer to the next transfer or NULL on error.
  */
-struct uhc_transfer *uhc_xfer_get_next(const struct device *dev);
+struct uhc_transfer *uhc_xfer_get_next(const struct device *dev, uint16_t frame_number);
 
 /**
  * @brief Helper to append a transfer to internal list.

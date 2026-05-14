@@ -54,13 +54,76 @@ void uhc_xfer_return(const struct device *dev,
 	data->event_cb(dev, &drv_evt);
 }
 
-struct uhc_transfer *uhc_xfer_get_next(const struct device *dev)
+static inline int16_t xfer_seq_cmp(uint16_t a, uint16_t b)
+{
+	/*
+	 * Use serial-number arithmetic for the unsigned 16-bit frame counter. The
+	 * wrapped subtraction is interpreted as a signed delta, so values just
+	 * after rollover compare newer than values just before it. Comparisons
+	 * are meaningful only within half the counter range.
+	 */
+	return (int16_t)(a - b);
+}
+
+/* a <= b */
+static inline bool xfer_seq_le(uint16_t a, uint16_t b)
+{
+	return xfer_seq_cmp(a, b) <= 0;
+}
+
+/* a < b */
+static inline bool xfer_seq_l(uint16_t a, uint16_t b)
+{
+	return xfer_seq_cmp(a, b) < 0;
+}
+
+void uhc_xfer_add_to_int(const struct device *dev, struct uhc_transfer *const xfer)
+{
+	struct uhc_data *data = dev->data;
+	sys_dlist_t *int_list = &data->int_xfers;
+
+	struct uhc_transfer *curr;
+
+	SYS_DLIST_FOR_EACH_CONTAINER(int_list, curr, node) {
+		if (xfer_seq_l(xfer->start_frame, curr->start_frame)) {
+			continue;
+		}
+		sys_dlist_insert(&curr->node, &xfer->node);
+		return;
+	}
+
+	sys_dlist_append(int_list, &xfer->node);
+}
+
+void uhc_xfer_reschedule_periodic(const struct device *dev, struct uhc_transfer *const xfer,
+				  uint16_t frame_number)
+{
+	uint16_t old_start_frame = xfer->start_frame;
+
+	do {
+		xfer->start_frame += xfer->interval;
+	} while (xfer_seq_le(xfer->start_frame, frame_number));
+
+	sys_dlist_remove(&xfer->node);
+	uhc_xfer_add_to_int(dev, xfer);
+
+	LOG_DBG("Interrupt transfer advance frame old s.f. %u new s.f %u f.n. %u interval %u",
+		old_start_frame, xfer->start_frame, frame_number, xfer->interval);
+}
+
+struct uhc_transfer *uhc_xfer_get_next(const struct device *dev, uint16_t frame_number)
 {
 	struct uhc_data *data = dev->data;
 	struct uhc_transfer *xfer;
 	sys_dnode_t *node;
 
 	/* Draft, WIP */
+
+	xfer = SYS_DLIST_CONTAINER(sys_dlist_peek_tail(&data->int_xfers), xfer, node);
+	if (xfer && xfer_seq_le(xfer->start_frame, frame_number)) {
+		return xfer;
+	}
+
 	node = sys_dlist_peek_head(&data->ctrl_xfers);
 	if (node == NULL) {
 		node = sys_dlist_peek_head(&data->bulk_xfers);
@@ -74,7 +137,21 @@ int uhc_xfer_append(const struct device *dev,
 {
 	struct uhc_data *data = dev->data;
 
-	sys_dlist_append(&data->ctrl_xfers, &xfer->node);
+	switch (xfer->type) {
+	case USB_EP_TYPE_CONTROL:
+		sys_dlist_append(&data->ctrl_xfers, &xfer->node);
+		break;
+	case USB_EP_TYPE_BULK:
+		sys_dlist_append(&data->bulk_xfers, &xfer->node);
+		break;
+	case USB_EP_TYPE_ISO:
+		LOG_WRN("Iso xfers not implemeted yet, treating as interrupt xfer");
+	case USB_EP_TYPE_INTERRUPT:
+		uhc_xfer_add_to_int(dev, xfer);
+		break;
+	default:
+		LOG_ERR("Invalid xfer type: %d", xfer->type);
+	}
 
 	return 0;
 }
@@ -338,6 +415,7 @@ int uhc_init(const struct device *dev,
 	data->event_ctx = event_ctx;
 	sys_dlist_init(&data->ctrl_xfers);
 	sys_dlist_init(&data->bulk_xfers);
+	sys_dlist_init(&data->int_xfers);
 
 	ret = api->init(dev);
 	if (ret == 0) {
