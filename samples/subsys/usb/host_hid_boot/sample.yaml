@@ -1,0 +1,16 @@
+sample:
+  name: USB support shell sample
+tests:
+  sample.usbh.hid.log:
+    tags:
+      - usb
+      - shield
+    extra_args:
+      - SHIELD="sparkfun_max3421e"
+    platform_allow:
+      - stm32h747i_disco/stm32h747xx/m7
+    build_only: true
+  sample.usbh.hid.log.virtual:
+    tags: usb
+    platform_allow: qemu_cortex_m3
+    build_only: true
