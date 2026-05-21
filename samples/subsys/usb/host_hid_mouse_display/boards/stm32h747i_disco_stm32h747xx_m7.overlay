@@ -1,0 +1,33 @@
+/*
+ * Copyright (c) 2024 Antmicro <www.antmicro.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* &spi2 { */
+/* 	status = "okay"; */
+/**/
+/* 	pinctrl-0 = <&spi2_nss_pa11 &spi2_sck_pa12 &spi2_miso_pc2 &spi2_mosi_pc3>; */
+/* 	pinctrl-names = "default"; */
+/**/
+/* 	cs-gpios = <&pmod0 0 GPIO_ACTIVE_LOW>; */
+/**/
+/* 	zephyr_uhc0: max3421e@0 { */
+/* 		compatible = "maxim,max3421e-spi"; */
+/* 		spi-max-frequency = <26000000>; */
+/* 		int-gpios = <&pmod0 4 GPIO_ACTIVE_LOW>; */
+/* 		reset-gpios = <&pmod0 5 GPIO_ACTIVE_LOW>; */
+/* 		status = "okay"; */
+/* 		reg = <0>; */
+/* 	}; */
+/* }; */
+
+/ {
+	chosen {
+		/delete-property/ zephyr,touch;
+	};
+};
+
+&ft5336 {
+	status = "disabled";
+};

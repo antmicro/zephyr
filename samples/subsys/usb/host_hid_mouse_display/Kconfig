@@ -1,0 +1,7 @@
+config SAMPLE_COLORED_OUTPUT
+	bool "ANSI colored logs in sample"
+	default y
+	help
+	  ANSI colored logs in sample
+
+source "Kconfig.zephyr"
