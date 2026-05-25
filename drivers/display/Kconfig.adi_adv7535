@@ -1,0 +1,12 @@
+# Copyright (c) 2026 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+config ADI_ADV7535
+	bool "Analog Devices ADV7535 DSI-to-HDMI bridge driver"
+	default y
+	select MIPI_DSI
+	select I2C
+	depends on DT_HAS_ADI_ADV7535_ENABLED
+	help
+	  Enable driver for Analog Devices ADV7535 DSI-to-HDMI display bridge.
