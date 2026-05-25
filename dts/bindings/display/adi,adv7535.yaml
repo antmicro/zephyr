@@ -1,0 +1,50 @@
+#
+# Copyright (c) 2026 Antmicro <www.antmicro.com>
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+title: Analog Devices ADV7535 DSI-to-HDMI display bridge
+
+description: |
+    The ADV7535 provides a MIPI® display serial interface (MIPI/ DSI) input receiver and
+    a High-Definition Multimedia Interface (HDMI®) transmitter output.
+    The DSI receiver input supports DSI video mode operation only, and specifically,
+    only supports non-burst mode with sync pulses.
+    The DSI receiver provides up to four lanes of MIPI/DSI data, each running up to 891 Mbps.
+    The HDMI transmitter supports video resolutions up to a maximum TMDS clock frequency
+    of 148.5 MHz. The ADV7535 also provides an audio input port,
+    which supports the insertion of audio into the HDMI stream.
+
+compatible: "adi,adv7535"
+
+include: base.yaml
+
+on-bus: i2c
+
+properties:
+  reg:
+    required: true
+
+  data-lanes:
+    type: array
+    required: true
+    description:
+      Number of data lanes.
+
+  pixel-format:
+    type: int
+    required: true
+    description:
+      Pixel format. Available formats in dt-bindings/mipi_dsi/mipi_dsi.h.
+
+  mipi-dsi:
+    type: phandle
+    required: true
+    description:
+      Instance of the MIPI DSI peripheral.
+
+  reset-gpios:
+    type: phandle-array
+    description: |
+      TODO: Write description for this, figure out whether active low or high
