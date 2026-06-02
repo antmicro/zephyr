@@ -89,21 +89,21 @@ static int adv7535_init(const struct device *dev)
 
 	LOG_ERR("Log from driver init function");
 
-	// if (!adv7535_i2c_bus_ready(dev)) {
-	// 	LOG_ERR("Bus device %s not ready!", adv7535_i2c_bus_name(dev));
-	// 	return -EINVAL;
-	// }
+	if (!adv7535_i2c_bus_ready(dev)) {
+		LOG_ERR("Bus device %s not ready!", adv7535_i2c_bus_name(dev));
+		return -EINVAL;
+	}
 
 	// TODO: Remeber to handle the reset gpio
 	// TODO: Init the whole thing here
 
-	// ret = adv7535_attach_to_mipi_dsi_host(dev);
-	// if (ret) {
-	// 	LOG_ERR("Failed to attach to MIPI DSI host: %d", ret);
-	// 	return ret;
-	// }
-	//
-	// LOG_DBG("ADV7535 initialized");
+	ret = adv7535_attach_to_mipi_dsi_host(dev);
+	if (ret) {
+		LOG_ERR("Failed to attach to MIPI DSI host: %d", ret);
+		return ret;
+	}
+
+	LOG_DBG("ADV7535 initialized");
 
 	return 0;
 }
