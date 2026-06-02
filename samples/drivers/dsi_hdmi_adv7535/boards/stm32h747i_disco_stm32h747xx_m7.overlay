@@ -305,7 +305,10 @@
 	};
 	adv7535: adv7535@39 {
 		reg = <0x39>;
-		//compatible = "adi,adv7535";
+		compatible = "adi,adv7535";
+		mipi-dsi = <&mipi_dsi>;
+		data-lanes = <2>;
+		pixel-format = <MIPI_DSI_PIXFMT_RGB888>;
 		//reset-gpios = <&gpiog 7 GPIO_ACTIVE_LOW>;
 		status = "okay";
 	};
