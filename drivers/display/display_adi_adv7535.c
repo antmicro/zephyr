@@ -56,7 +56,7 @@ static int adv7535_write(const struct device *dev, uint8_t reg, uint8_t val)
 
 static int adv7535_power_up(const struct device *dev)
 {
-	return adv7535_write(dev, ADV7535_REG_POWER, ADV7535_REG_POWER_UP);
+	return adv7535_write(dev, ADV7535_REG_POWER, ADV7535_POWER_UP);
 }
 
 static int adv7535_attach_to_mipi_dsi_host(const struct device* dev)
@@ -87,21 +87,23 @@ static int adv7535_init(const struct device *dev)
 	struct adv7535_data *data = dev->data;
 	int ret;
 
-	if (!adv7535_i2c_bus_ready(dev)) {
-		LOG_ERR("Bus device %s not ready!", adv7535_i2c_bus_name(dev));
-		return -EINVAL;
-	}
+	LOG_ERR("Log from driver init function");
+
+	// if (!adv7535_i2c_bus_ready(dev)) {
+	// 	LOG_ERR("Bus device %s not ready!", adv7535_i2c_bus_name(dev));
+	// 	return -EINVAL;
+	// }
 
 	// TODO: Remeber to handle the reset gpio
 	// TODO: Init the whole thing here
 
-	ret = adv7535_attach_to_mipi_dsi_host(dev);
-	if (ret) {
-		LOG_ERR("Failed to attach to MIPI DSI host: %d", ret);
-		return ret;
-	}
-
-	LOG_DBG("ADV7535 initialized");
+	// ret = adv7535_attach_to_mipi_dsi_host(dev);
+	// if (ret) {
+	// 	LOG_ERR("Failed to attach to MIPI DSI host: %d", ret);
+	// 	return ret;
+	// }
+	//
+	// LOG_DBG("ADV7535 initialized");
 
 	return 0;
 }
@@ -113,7 +115,7 @@ static int adv7535_init(const struct device *dev)
 		.num_of_lanes = DT_INST_PROP_BY_IDX(id, data_lanes, 0),                            \
 		.i2c = I2C_DT_SPEC_INST_GET(id),                                          \
 	};                                                                                         \
-	static struct adv7535_data data_##idadv7535= {                                         \
+	static struct adv7535_data data_##id = {                                         \
 		.pixel_format = DT_INST_PROP(id, pixel_format),                                    \
 	};                                                                                         \
 	DEVICE_DT_INST_DEFINE(id, adv7535_init, NULL, &data_##id, &config_##id,          \
