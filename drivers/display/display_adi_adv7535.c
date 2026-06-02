@@ -54,6 +54,13 @@ static int adv7535_write(const struct device *dev, uint8_t reg, uint8_t val)
 	return i2c_write_dt(&config->i2c, buf, 2);
 }
 
+static int adv7535_set_fixed_registers(const struct device* dev)
+{
+	ARRAY_FOR_EACH(adv7535_fixed_registers, i){
+		adv7535_write(dev, adv7535_fixed_registers[i].reg, adv7535_fixed_registers[i].val);
+	}
+}
+
 static int adv7535_power_up(const struct device *dev)
 {
 	return adv7535_write(dev, ADV7535_REG_POWER, ADV7535_POWER_UP);
@@ -96,6 +103,8 @@ static int adv7535_init(const struct device *dev)
 
 	// TODO: Remeber to handle the reset gpio
 	// TODO: Init the whole thing here
+
+	adv7535_set_fixed_registers(dev);
 
 	ret = adv7535_attach_to_mipi_dsi_host(dev);
 	if (ret) {
