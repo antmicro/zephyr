@@ -309,7 +309,7 @@
 		mipi-dsi = <&mipi_dsi>;
 		data-lanes = <2>;
 		pixel-format = <MIPI_DSI_PIXFMT_RGB888>;
-		//reset-gpios = <&gpiog 7 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpiog 7 GPIO_ACTIVE_LOW>;
 		status = "okay";
 	};
 };
