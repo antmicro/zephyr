@@ -39,7 +39,7 @@
 			status = "okay";
 		};
 
-		//Temp 
+		//Temp
 		adv7535_rst: adv7535_rst {
 			gpios = <&gpiog 7 GPIO_ACTIVE_LOW>;
 			status = "okay";
@@ -55,7 +55,7 @@
 			status = "okay";
 		};
 	};
-	
+
 	sdram1: sdram@c0000000 {
 		status = "okay";
 		compatible = "zephyr,memory-region", "mmio-sram";
@@ -96,12 +96,12 @@
 	};
 	spi5_sck_pk0: spi5_sck_pk0 {
 		pinmux = <STM32_PINMUX('K', 0, AF5)>;
-	}; 
-	
+	};
+
 	spi5_miso_pj11: spi5_miso_pj11 {
 		pinmux = <STM32_PINMUX('J', 11, AF5)>;
 	};
-	
+
 	spi5_mosi_pj10: spi5_mosi_pj10{
 		pinmux = <STM32_PINMUX('J',10, AF5)>;
 	};
@@ -149,7 +149,7 @@
 				 &quadspi_bk2_io2_pg9 &quadspi_bk2_io3_pg14>;
 	/delete-node/ mt25ql512ab1;
 	/delete-node/ mt25ql512ab2;
-	
+
 	mt25ql01gbbb1: qspi-nor-flash-1@0 {
 		compatible = "st,stm32-qspi-nor";
 		reg = <0>;
@@ -180,7 +180,7 @@
 
 	status = "okay";
 	pinctrl-0 = <&fmc_nbl0_pe0 &fmc_nbl1_pe1 &fmc_nbl2_pi4 &fmc_nbl3_pi5
-			 &fmc_sdclk_pg8 &fmc_sdnwe_pc0 &fmc_sdcke0_pc3 &fmc_sdne0_pc2 
+			 &fmc_sdclk_pg8 &fmc_sdnwe_pc0 &fmc_sdcke0_pc3 &fmc_sdne0_pc2
 			 &fmc_sdcke1_ph7 &fmc_sdne1_ph6 &fmc_sdnras_pf11 &fmc_sdncas_pg15
 			 &fmc_a0_pf0 &fmc_a1_pf1 &fmc_a2_pf2 &fmc_a3_pf3 &fmc_a4_pf4
 			 &fmc_a5_pf5 &fmc_a6_pf12 &fmc_a7_pf13 &fmc_a8_pf14
