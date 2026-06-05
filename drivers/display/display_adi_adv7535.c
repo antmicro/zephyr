@@ -56,9 +56,17 @@ static int adv7535_write(const struct device *dev, uint8_t reg, uint8_t val)
 
 static int adv7535_set_fixed_registers(const struct device* dev)
 {
+	int ret = 0;
+
 	ARRAY_FOR_EACH(adv7535_fixed_registers, i){
-		adv7535_write(dev, adv7535_fixed_registers[i].reg, adv7535_fixed_registers[i].val);
+		ret = adv7535_write(dev, adv7535_fixed_registers[i].reg,
+		      adv7535_fixed_registers[i].val);
+		if(ret){
+			return ret;
+		}
 	}
+
+	return ret;
 }
 
 static int adv7535_power_up(const struct device *dev)
@@ -104,7 +112,10 @@ static int adv7535_init(const struct device *dev)
 	// TODO: Remeber to handle the reset gpio
 	// TODO: Init the whole thing here
 
-	adv7535_set_fixed_registers(dev);
+	ret = adv7535_set_fixed_registers(dev);
+	if (ret){
+		LOG_ERR("Failed to set fixed registers: %d", ret);
+	}
 
 	ret = adv7535_attach_to_mipi_dsi_host(dev);
 	if (ret) {
