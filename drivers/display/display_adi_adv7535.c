@@ -63,6 +63,26 @@ static int adv7535_read(const struct device *dev, uint8_t reg, uint8_t *buf)
 	return i2c_write_read_dt(&config->i2c, &reg, 1, buf, 1);
 }
 
+static int adv7535_write_cec(const struct device *dev, uint8_t reg, uint8_t val)
+{
+	const struct adv7535_config *config = dev->config;
+	const struct device *i2c_dev = config->i2c.bus;
+	uint8_t buf[2];
+
+	buf[0] = reg;
+	buf[1] = val;
+
+	return i2c_write(i2c_dev, buf, 2, ADV7535_I2C_CEC_ADDR_DEFAULT);
+}
+
+static int adv7535_read_cec(const struct device *dev, uint8_t reg, uint8_t *val)
+{
+	const struct adv7535_config *config = dev->config;
+	const struct device *i2c_dev = config->i2c.bus;
+
+	return i2c_write_read(i2c_dev, ADV7535_I2C_CEC_ADDR_DEFAULT, &reg, 1, val, 1);
+}
+
 static int adv7535_set_fixed_registers(const struct device* dev)
 {
 	int ret = 0;
