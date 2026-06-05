@@ -56,6 +56,13 @@ static int adv7535_write(const struct device *dev, uint8_t reg, uint8_t val)
 	return i2c_write_dt(&config->i2c, buf, 2);
 }
 
+static int adv7535_read(const struct device *dev, uint8_t reg, uint8_t *buf)
+{
+	const struct adv7535_config *config = dev->config;
+
+	return i2c_write_read_dt(&config->i2c, &reg, 1, buf, 1);
+}
+
 static int adv7535_set_fixed_registers(const struct device* dev)
 {
 	int ret = 0;
@@ -103,6 +110,7 @@ static int adv7535_init(const struct device *dev)
 	const struct adv7535_config *config = dev->config;
 	struct adv7535_data *data = dev->data;
 	int ret;
+	uint8_t revision;
 
 	LOG_ERR("Log from driver init function");
 
@@ -129,7 +137,8 @@ static int adv7535_init(const struct device *dev)
 		return ret;
 	}
 
-	LOG_DBG("ADV7535 initialized");
+	adv7535_read(dev, 0x00, &revision);
+	LOG_DBG("ADV7535 initialized. Chip Revision: %d", revision);
 
 	return 0;
 }

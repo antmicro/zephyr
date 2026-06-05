@@ -7,6 +7,8 @@
 
 #include <zephyr/kernel.h>
 
+#define ADV7535_REG_REVISION 0x00
+
 #define ADV7535_REG_POWER 0x41
 #define ADV7535_POWER_UP 0
 #define ADV7535_POWER_DOWN 1
