@@ -118,6 +118,11 @@ static int adv7535_power_up(const struct device *dev)
 	return adv7535_write(dev, ADV7535_REG_POWER, ADV7535_POWER_UP);
 }
 
+static int adv7535_power_down(const struct device *dev)
+{
+	return adv7535_write(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN);
+}
+
 static int adv7535_attach_to_mipi_dsi_host(const struct device* dev)
 {
 	const struct adv7535_config *config = dev->config;
@@ -154,8 +159,8 @@ static int adv7535_init(const struct device *dev)
 		return -EINVAL;
 	}
 
-	// TODO: Remeber to handle the reset gpio
-	// TODO: Init the whole thing here
+	adv7535_power_down(dev);
+	adv7535_power_up(dev);
 
 	ret = adv7535_set_fixed_registers(dev);
 	if (ret){
