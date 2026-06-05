@@ -26,6 +26,8 @@ struct adv7535_config {
 };
 
 struct adv7535_data {
+	uint8_t enable_1_reg;
+	uint8_t enable_2_reg;
 	uint8_t pixel_format;
 };
 
@@ -111,6 +113,10 @@ static int adv7535_init(const struct device *dev)
 
 	// TODO: Remeber to handle the reset gpio
 	// TODO: Init the whole thing here
+
+	/* Disable all packets */
+	adv7535_write(dev, ADV7535_REG_ENABLE_0, 0);
+	adv7535_write(dev, ADV7535_REG_ENABLE_1, 0);
 
 	ret = adv7535_set_fixed_registers(dev);
 	if (ret){
