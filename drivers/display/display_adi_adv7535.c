@@ -157,6 +157,11 @@ static int adv7535_init(const struct device *dev)
 	// TODO: Remeber to handle the reset gpio
 	// TODO: Init the whole thing here
 
+	ret = adv7535_set_fixed_registers(dev);
+	if (ret){
+		LOG_ERR("Failed to set fixed registers: %d", ret);
+	}
+
 	/* Disable all packets */
 	adv7535_write(dev, ADV7535_REG_ENABLE_0, 0);
 	adv7535_write(dev, ADV7535_REG_ENABLE_1, 0);
@@ -164,11 +169,6 @@ static int adv7535_init(const struct device *dev)
 	ret = adv7535_set_cec_fixed_registers(dev);
 	if (ret){
 		LOG_ERR("Failed to set CEC fixed registers: %d", ret);
-	}
-
-	ret = adv7535_set_fixed_registers(dev);
-	if (ret){
-		LOG_ERR("Failed to set fixed registers: %d", ret);
 	}
 
 	ret = adv7535_attach_to_mipi_dsi_host(dev);
