@@ -98,6 +98,21 @@ static int adv7535_set_fixed_registers(const struct device* dev)
 	return ret;
 }
 
+static int adv7535_set_cec_fixed_registers(const struct device* dev)
+{
+	int ret = 0;
+
+	ARRAY_FOR_EACH(adv7535_cec_fixed_registers, i){
+		ret = adv7535_write_cec(dev, adv7535_cec_fixed_registers[i].reg,
+		      adv7535_cec_fixed_registers[i].val);
+		if(ret){
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 static int adv7535_power_up(const struct device *dev)
 {
 	return adv7535_write(dev, ADV7535_REG_POWER, ADV7535_POWER_UP);
@@ -145,6 +160,11 @@ static int adv7535_init(const struct device *dev)
 	/* Disable all packets */
 	adv7535_write(dev, ADV7535_REG_ENABLE_0, 0);
 	adv7535_write(dev, ADV7535_REG_ENABLE_1, 0);
+
+	ret = adv7535_set_cec_fixed_registers(dev);
+	if (ret){
+		LOG_ERR("Failed to set CEC fixed registers: %d", ret);
+	}
 
 	ret = adv7535_set_fixed_registers(dev);
 	if (ret){
