@@ -74,7 +74,17 @@ properties:
     description:
       Instance of the MIPI DSI peripheral.
 
-  reset-gpios:
+  dsi-channel:
+    type: int
+    required: true
+    description:
+      MIPI DSI virtual channel number used to communicate with the bridge.
+
+  pd-gpios:
     type: phandle-array
     description: |
-      TODO: Write description for this, figure out whether active low or high
+      GPIO connected to the PD/AD power-down pin. The pin level when the
+      ADV7535 power supplies are applied selects both the main I2C address and
+      the power-down polarity. A low level selects address 0x39 and active-high
+      power-down, while a high level selects address 0x3d and active-low
+      power-down. The GPIO flags must match the selected power-down polarity.

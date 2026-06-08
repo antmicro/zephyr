@@ -254,6 +254,7 @@ static int adv7535_init(const struct device *dev)
 		return ret;
 	}
 
+	// TODO: Add general info here like i2c addresses, channel etc.
 	adv7535_read(dev, 0x00, &revision);
 	LOG_DBG("ADV7535 initialized. Chip Revision: %d", revision);
 
@@ -263,7 +264,7 @@ static int adv7535_init(const struct device *dev)
 #define ADV7535_DEFINE(id)                                                               \
 	static const struct adv7535_config config_##id = {                               \
 		.mipi_dsi_host = DEVICE_DT_GET(DT_INST_PHANDLE(id, mipi_dsi)),                          \
-		.channel = 2, /* TODO: */ \
+		.channel = DT_INST_PROP(id, dsi_channel), \
 		.num_of_lanes = DT_INST_PROP_BY_IDX(id, data_lanes, 0),                            \
 		.i2c_conf = { \
 			.i2c = I2C_DT_SPEC_INST_GET(id),                                          \
