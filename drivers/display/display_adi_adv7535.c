@@ -18,11 +18,19 @@
 
 LOG_MODULE_REGISTER(adi_adv7535, CONFIG_DISPLAY_LOG_LEVEL);
 
+struct adv7535_i2c_conf {
+	uint8_t edid_addr;
+	uint8_t packet_addr;
+	uint8_t cec_addr;
+	uint8_t fixed_addr;
+	struct i2c_dt_spec i2c;
+};
+
 struct adv7535_config {
 	const struct device *mipi_dsi_host;
 	uint8_t channel;
 	uint8_t num_of_lanes;
-	struct i2c_dt_spec i2c;
+	struct adv7535_i2c_conf i2c_conf;
 };
 
 struct adv7535_data {
@@ -35,52 +43,71 @@ static bool adv7535_i2c_bus_ready(const struct device *dev)
 {
 	const struct adv7535_config *config = dev->config;
 
-	return i2c_is_ready_dt(&config->i2c);
+	return i2c_is_ready_dt(&config->i2c_conf.i2c);
 }
 
 static const char *adv7535_i2c_bus_name(const struct device *dev)
 {
 	const struct adv7535_config *config = dev->config;
 
-	return config->i2c.bus->name;
+	return config->i2c_conf.i2c.bus->name;
+}
+
+static int adv7535_generic_write(const struct device *dev, uint8_t i2c_addr, uint8_t reg, uint8_t val)
+{
+	const struct adv7535_config *config = dev->config;
+	const struct device *i2c_dev = config->i2c_conf.i2c.bus;
+	int ret = 0;
+	uint8_t buf[2];
+
+	buf[0] = reg;
+	buf[1] = val;
+
+	ret = i2c_write(i2c_dev, buf, 2, i2c_addr);
+	if (ret) {
+		LOG_ERR("Could not write to address 0x%02x, register 0x%02x, value 0x%02x",
+			i2c_addr, reg, val);
+	}
+
+	return ret;
+}
+
+static int adv7535_generic_read(const struct device *dev, uint8_t i2c_addr, uint8_t reg, uint8_t *buf)
+{
+	const struct adv7535_config *config = dev->config;
+	const struct device *i2c_dev = config->i2c_conf.i2c.bus;
+	int ret = 0;
+
+	ret = i2c_write_read(i2c_dev, i2c_addr, &reg, 1, buf, 1);
+	if (ret) {
+		LOG_ERR("Could not read address 0x%02x, register 0x%02x", i2c_addr, reg);
+	}
+
+	return ret;
 }
 
 static int adv7535_write(const struct device *dev, uint8_t reg, uint8_t val)
 {
 	const struct adv7535_config *config = dev->config;
-	uint8_t buf[2];
-
-	buf[0] = reg;
-	buf[1] = val;
-
-	return i2c_write_dt(&config->i2c, buf, 2);
+	return adv7535_generic_write(dev, config->i2c_conf.i2c.addr, reg, val);
 }
 
 static int adv7535_read(const struct device *dev, uint8_t reg, uint8_t *buf)
 {
 	const struct adv7535_config *config = dev->config;
-
-	return i2c_write_read_dt(&config->i2c, &reg, 1, buf, 1);
+	return adv7535_generic_read(dev, config->i2c_conf.i2c.addr, reg, buf);
 }
 
 static int adv7535_write_cec(const struct device *dev, uint8_t reg, uint8_t val)
 {
 	const struct adv7535_config *config = dev->config;
-	const struct device *i2c_dev = config->i2c.bus;
-	uint8_t buf[2];
-
-	buf[0] = reg;
-	buf[1] = val;
-
-	return i2c_write(i2c_dev, buf, 2, ADV7535_I2C_CEC_ADDR_DEFAULT);
+	return adv7535_generic_write(dev, config->i2c_conf.cec_addr, reg, val);
 }
 
-static int adv7535_read_cec(const struct device *dev, uint8_t reg, uint8_t *val)
+static int adv7535_read_cec(const struct device *dev, uint8_t reg, uint8_t *buf)
 {
 	const struct adv7535_config *config = dev->config;
-	const struct device *i2c_dev = config->i2c.bus;
-
-	return i2c_write_read(i2c_dev, ADV7535_I2C_CEC_ADDR_DEFAULT, &reg, 1, val, 1);
+	return adv7535_generic_read(dev, config->i2c_conf.cec_addr, reg, buf);
 }
 
 static int adv7535_set_fixed_registers(const struct device* dev)
@@ -93,6 +120,10 @@ static int adv7535_set_fixed_registers(const struct device* dev)
 		if(ret){
 			return ret;
 		}
+		uint8_t tmp;
+		adv7535_read(dev, adv7535_fixed_registers[i].reg, &tmp);
+		LOG_WRN("main: reg: 0x%02x; expected: 0x%02x; read: 0x%02x",
+			adv7535_fixed_registers[i].reg, adv7535_fixed_registers[i].val, tmp);
 	}
 
 	return ret;
@@ -108,6 +139,10 @@ static int adv7535_set_cec_fixed_registers(const struct device* dev)
 		if(ret){
 			return ret;
 		}
+		uint8_t tmp;
+		adv7535_read_cec(dev, adv7535_cec_fixed_registers[i].reg, &tmp);
+		LOG_WRN("cec: reg: 0x%02x; expected: 0x%02x; read: 0x%02x",
+			adv7535_cec_fixed_registers[i].reg, adv7535_cec_fixed_registers[i].val, tmp);
 	}
 
 	return ret;
@@ -115,12 +150,48 @@ static int adv7535_set_cec_fixed_registers(const struct device* dev)
 
 static int adv7535_power_up(const struct device *dev)
 {
-	return adv7535_write(dev, ADV7535_REG_POWER, ADV7535_POWER_UP);
+	int ret = 0;
+	uint8_t pd_reg;
+
+	ret = adv7535_read(dev, ADV7535_REG_POWER, &pd_reg);
+	if (ret) {
+		return ret;
+	}
+
+	if (pd_reg & ADV7535_POWER_DOWN){
+		ret = adv7535_write(dev, ADV7535_REG_POWER, pd_reg & ~ADV7535_POWER_DOWN);
+		if (ret) {
+			return ret;
+		}
+	} else {
+		LOG_INF("Tried to power up ADV7535, while it is already powered up");
+		return 0;
+	}
+
+	return ret;
 }
 
 static int adv7535_power_down(const struct device *dev)
 {
-	return adv7535_write(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN);
+	int ret = 0;
+	uint8_t pd_reg;
+
+	ret = adv7535_read(dev, ADV7535_REG_POWER, &pd_reg);
+	if (ret) {
+		return ret;
+	}
+
+	if (pd_reg & ADV7535_POWER_DOWN){
+		LOG_INF("Tried to power down ADV7535, while it is already powered down");
+		return 0;
+	} else {
+		ret = adv7535_write(dev, ADV7535_REG_POWER, pd_reg | ADV7535_POWER_DOWN);
+		if (ret) {
+			return ret;
+		}
+	}
+
+	return ret;
 }
 
 static int adv7535_attach_to_mipi_dsi_host(const struct device* dev)
@@ -159,6 +230,7 @@ static int adv7535_init(const struct device *dev)
 		return -EINVAL;
 	}
 
+	/* Is adv7535_power_down call needed here? */
 	adv7535_power_down(dev);
 	adv7535_power_up(dev);
 
@@ -191,9 +263,15 @@ static int adv7535_init(const struct device *dev)
 #define ADV7535_DEFINE(id)                                                               \
 	static const struct adv7535_config config_##id = {                               \
 		.mipi_dsi_host = DEVICE_DT_GET(DT_INST_PHANDLE(id, mipi_dsi)),                          \
-		.channel = DT_INST_REG_ADDR(id),                                                   \
+		.channel = 2, /* TODO: */ \
 		.num_of_lanes = DT_INST_PROP_BY_IDX(id, data_lanes, 0),                            \
-		.i2c = I2C_DT_SPEC_INST_GET(id),                                          \
+		.i2c_conf = { \
+			.i2c = I2C_DT_SPEC_INST_GET(id),                                          \
+			.edid_addr = DT_INST_PROP_OR(id, edid_addr, ADV7535_I2C_EDID_ADDR_DEFAULT ), \
+			.packet_addr = DT_INST_PROP_OR(id, packet_addr, ADV7535_I2C_PACKET_ADDR_DEFAULT ), \
+			.cec_addr = DT_INST_PROP_OR(id, cec_addr, ADV7535_I2C_CEC_ADDR_DEFAULT ), \
+			.fixed_addr = DT_INST_PROP_OR(id, fixed_addr, ADV7535_I2C_FIXED_ADDR_DEFAULT ), \
+		} \
 	};                                                                                         \
 	static struct adv7535_data data_##id = {                                         \
 		.pixel_format = DT_INST_PROP(id, pixel_format),                                    \

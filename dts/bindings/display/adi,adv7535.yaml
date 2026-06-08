@@ -25,6 +25,36 @@ on-bus: i2c
 properties:
   reg:
     required: true
+    enum:
+      - 0x39
+      - 0x3d
+    description: |
+      Main Register Map is 0x72 or 0x7A,
+      based on whether PD/AD is pulled high (10KΩ resistor to power supply = 0x7A)
+      or pulled low (10KΩ resistor to GND = 0x72)
+      when power is applied to the supplies.
+      The user should wait 200ms for the address to be decided, after the power
+      supplies are high, before attempting to communicate with the ADV7511 using I2C.
+
+  edid-addr:
+    type: int
+    default: 0x3f
+    description: Optional EDID I2C address. If not set assumes 0x3f.
+
+  packet-addr:
+    type: int
+    default: 0x38
+    description: Optional packet I2C address. If not set assumes 0x38.
+
+  cec-addr:
+    type: int
+    default: 0x3c
+    description: Optional CEC I2C address. If not set assumes 0x3c.
+
+  fixed-addr:
+    type: int
+    default: 0x00
+    description: This should be set to a non-conflicting I2C address. By default set to 0x00.
 
   data-lanes:
     type: array
