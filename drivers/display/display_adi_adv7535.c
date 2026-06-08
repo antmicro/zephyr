@@ -232,6 +232,75 @@ static int adv7535_attach_to_mipi_dsi_host(const struct device* dev)
 	return 0;
 }
 
+static int adv7535_dsi_power_on(const struct device *dev)
+{
+	const struct adv7535_config *config = dev->config;
+	int ret = 0;
+	uint8_t tmp;
+
+	/* This function is a part of ADV7533_Configure in STM driver
+	 * And is pretty much 1 to 1 with adv7533_dsi_power_on from the Linux driver
+	 */
+
+	ret = adv7535_write_cec(dev, 0x1C, config->num_of_lanes << 4);
+	if (ret){
+		return ret;
+	}
+
+	/* Idk if this should be behind an if statement with boolean internal_timing_gen set in
+	 * device tree, also add early return on error
+	 */
+	if (true) {
+		/* Reset internal timing generator */
+		adv7535_write_cec(dev, 0x27, 0xcb);
+		adv7535_write_cec(dev, 0x27, 0x8b);
+		adv7535_write_cec(dev, 0x27, 0xcb);
+	} else {
+		/* Disable interlan timing generator */
+		adv7535_write_cec(dev, 0x27, 0x0b);
+	}
+
+	/* Enable HDMI */
+	adv7535_write_cec(dev, 0x03, 0x89);
+
+	/* Disable test mode */
+	// adv7535_write_cec(dev, 0x55, 0x00);
+
+	adv7535_set_cec_fixed_registers(dev);
+
+	/* Code below is only in the STM driver */
+
+	/* Enable GC packet */
+	adv7535_read(dev, ADV7535_REG_ENABLE_0, &tmp);
+	tmp |= ADV7535_ENABLE_0_PACKET_GC;
+	adv7535_write(dev, ADV7535_REG_ENABLE_0, tmp);
+
+	/* Input color depth 24-bit per pixel */
+	adv7535_read(dev, 0x4C, &tmp);
+	tmp &= ~0x0FU;
+	tmp |= 0x03U;
+	adv7535_write(dev, 0x4C, tmp);
+
+	/* Down dither output color depth */
+	adv7535_write(dev, 0x49, 0xFC);
+
+	return ret;
+}
+
+static int adv7535_enable_test_pattern(const struct device *dev)
+{
+	adv7535_write_cec(dev, 0x55, 0x80);
+	k_msleep(2000);
+	adv7535_write_cec(dev, 0x55, 0xA0);
+	k_msleep(2000);
+	adv7535_write_cec(dev, 0x55, 0x89);
+	k_msleep(2000);
+	adv7535_write_cec(dev, 0x55, 0x16);
+	k_msleep(2000);
+
+	return 0;
+}
+
 static int adv7535_init(const struct device *dev)
 {
 	const struct adv7535_config *config = dev->config;
@@ -248,9 +317,14 @@ static int adv7535_init(const struct device *dev)
 
 	// TODO: Set EDID, Packet, CEC and Fixed addresses to values from DTS
 
+	uint8_t hpd;
+	adv7535_read(dev, 0xd6, &hpd);
+	hpd |= 0x40U;
+	adv7535_write(dev, 0xd6, hpd);
+
 	/* Is adv7535_power_down call needed here? */
-	adv7535_power_down(dev);
-	// adv7535_power_up(dev);
+	// adv7535_power_down(dev);
+	adv7535_power_up(dev);
 
 	ret = adv7535_set_fixed_registers(dev);
 	if (ret){
@@ -265,6 +339,12 @@ static int adv7535_init(const struct device *dev)
 	if (ret){
 		LOG_ERR("Failed to set CEC fixed registers: %d", ret);
 	}
+
+	/* Enable CEC */
+	adv7535_write(dev, ADV7535_REG_CEC_POWER_DOWN, ADV7535_CEC_POWER_DOWN);
+
+	adv7535_dsi_power_on(dev);
+	adv7535_enable_test_pattern(dev);
 
 	ret = adv7535_attach_to_mipi_dsi_host(dev);
 	if (ret) {

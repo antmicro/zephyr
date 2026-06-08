@@ -14,8 +14,11 @@
 
 #define ADV7535_REG_REVISION 0x00
 
+
 #define ADV7535_REG_POWER 0x41
+
 #define ADV7535_POWER_DOWN BIT(6) /* 0 = Powered up; 1 = Powered down */
+
 
 #define ADV7535_REG_ENABLE_0 0x40
 
@@ -28,6 +31,7 @@
 #define ADV7535_ENABLE_0_PACKET_SPD        BIT(6)
 #define ADV7535_ENABLE_0_PACKET_GC         BIT(7)
 
+
 #define ADV7535_REG_ENABLE_1 0x44
 
 #define ADV7535_ENABLE_1_PACKET_MEM_READ_MODE    BIT(0)
@@ -38,25 +42,31 @@
 #define ADV7535_ENABLE_1_PACKET_N_CTS            BIT(6)
 /* Bit 7 is reserved and should not be used */
 
+
+#define ADV7535_REG_CEC_POWER_DOWN 0xe2
+
+#define ADV7535_CEC_POWER_DOWN BIT(0)
+
+
 struct reg_val_pair {
 	uint8_t reg, val;
 };
 
 const struct reg_val_pair adv7535_fixed_registers[] = {
 	{ 0x16, 0x20 },
-	{ 0x9a, 0xe0 },
-	{ 0xba, 0x70 },
+	{ 0x9a, 0xe0 }, // Different
+	{ 0xba, 0x70 }, // Different
 	{ 0xde, 0x82 },
-	{ 0xe4, 0x40 },
+	{ 0xe4, 0x40 }, // Different
 	{ 0xe5, 0x80 },
 };
 
 const struct reg_val_pair adv7535_cec_fixed_registers[] = {
-	{ 0x15, 0xd0 },
-	{ 0x17, 0xd0 },
-	{ 0x24, 0x20 },
-	{ 0x57, 0x11 },
-	{ 0x05, 0xc8 },
+	{ 0x15, 0xd0 }, // Different
+	{ 0x17, 0xd0 }, // Different
+	{ 0x24, 0x20 }, // Different
+	{ 0x57, 0x11 }, // Different
+	{ 0x05, 0xc8 }, // Missing? Audio related so IDC
 };
 
 #endif  /* INCLUDE_DISPLAY_DISPLAY_ADI_ADV7535_H_ */
