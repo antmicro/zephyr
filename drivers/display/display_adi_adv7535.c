@@ -113,6 +113,7 @@ static int adv7535_read_cec(const struct device *dev, uint8_t reg, uint8_t *buf)
 static int adv7535_set_fixed_registers(const struct device* dev)
 {
 	int ret = 0;
+	uint8_t val;
 
 	ARRAY_FOR_EACH(adv7535_fixed_registers, i){
 		ret = adv7535_write(dev, adv7535_fixed_registers[i].reg,
@@ -120,10 +121,17 @@ static int adv7535_set_fixed_registers(const struct device* dev)
 		if(ret){
 			return ret;
 		}
-		uint8_t tmp;
-		adv7535_read(dev, adv7535_fixed_registers[i].reg, &tmp);
-		LOG_WRN("main: reg: 0x%02x; expected: 0x%02x; read: 0x%02x",
-			adv7535_fixed_registers[i].reg, adv7535_fixed_registers[i].val, tmp);
+
+		ret = adv7535_read(dev, adv7535_fixed_registers[i].reg, &val);
+		if(ret){
+			return ret;
+		}
+
+		if (adv7535_fixed_registers[i].val != val) {
+			LOG_WRN("main: reg: 0x%02x; expected: 0x%02x; read: 0x%02x",
+				adv7535_fixed_registers[i].reg,
+				adv7535_fixed_registers[i].val, val);
+		}
 	}
 
 	return ret;
@@ -132,6 +140,7 @@ static int adv7535_set_fixed_registers(const struct device* dev)
 static int adv7535_set_cec_fixed_registers(const struct device* dev)
 {
 	int ret = 0;
+	uint8_t val;
 
 	ARRAY_FOR_EACH(adv7535_cec_fixed_registers, i){
 		ret = adv7535_write_cec(dev, adv7535_cec_fixed_registers[i].reg,
@@ -139,10 +148,17 @@ static int adv7535_set_cec_fixed_registers(const struct device* dev)
 		if(ret){
 			return ret;
 		}
-		uint8_t tmp;
-		adv7535_read_cec(dev, adv7535_cec_fixed_registers[i].reg, &tmp);
-		LOG_WRN("cec: reg: 0x%02x; expected: 0x%02x; read: 0x%02x",
-			adv7535_cec_fixed_registers[i].reg, adv7535_cec_fixed_registers[i].val, tmp);
+
+		ret = adv7535_read_cec(dev, adv7535_cec_fixed_registers[i].reg, &val);
+		if(ret){
+			return ret;
+		}
+
+		if (adv7535_cec_fixed_registers[i].val != val) {
+			LOG_WRN("cec: reg: 0x%02x; expected: 0x%02x; read: 0x%02x",
+				adv7535_cec_fixed_registers[i].reg,
+				adv7535_cec_fixed_registers[i].val, val);
+		}
 	}
 
 	return ret;
@@ -230,9 +246,11 @@ static int adv7535_init(const struct device *dev)
 		return -EINVAL;
 	}
 
+	// TODO: Set EDID, Packet, CEC and Fixed addresses to values from DTS
+
 	/* Is adv7535_power_down call needed here? */
 	adv7535_power_down(dev);
-	adv7535_power_up(dev);
+	// adv7535_power_up(dev);
 
 	ret = adv7535_set_fixed_registers(dev);
 	if (ret){
