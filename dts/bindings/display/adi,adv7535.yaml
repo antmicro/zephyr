@@ -88,3 +88,8 @@ properties:
       the power-down polarity. A low level selects address 0x39 and active-high
       power-down, while a high level selects address 0x3d and active-low
       power-down. The GPIO flags must match the selected power-down polarity.
+      Although this GPIO is optional, connecting it is strongly recommended
+      because toggling the PD/AD pin resets more registers than a
+      register-based reset. The I2C address and power-down polarity are sampled
+      when power is applied. To change either setting, set the pin to the
+      desired level and power-cycle the board.
