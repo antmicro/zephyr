@@ -322,10 +322,11 @@ static int adv7535_init(const struct device *dev)
 
 	// TODO: Set EDID, Packet, CEC and Fixed addresses to values from DTS
 
-	uint8_t hpd;
-	adv7535_read(dev, 0xd6, &hpd);
-	hpd |= 0x40U;
-	adv7535_write(dev, 0xd6, hpd);
+	// Override HPD to be high so adv7535 can turn on
+	uint8_t hpd_control_register;
+	adv7535_read(dev, 0xd6, &hpd_control_register);
+	hpd_control_register |= 0x40U;
+	adv7535_write(dev, 0xd6, hpd_control_register);
 
 	/* Is adv7535_power_down call needed here? */
 	// adv7535_power_down(dev);
