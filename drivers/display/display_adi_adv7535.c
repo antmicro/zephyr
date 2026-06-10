@@ -8,7 +8,7 @@
 
 #define DT_DRV_COMPAT adi_adv7535
 
-#include <string.h>
+#include "zephyr/drivers/gpio.h"
 #include <zephyr/device.h>
 #include <zephyr/init.h>
 #include <zephyr/drivers/display.h>
@@ -34,6 +34,7 @@ struct adv7535_config {
 	uint8_t channel;
 	uint8_t num_of_lanes;
 	struct adv7535_i2c_conf i2c_conf;
+	struct gpio_dt_spec dt_pd;
 };
 
 struct adv7535_data {
@@ -292,7 +293,7 @@ static int adv7535_dsi_power_on(const struct device *dev)
 
 static int adv7535_enable_test_pattern(const struct device *dev)
 {
-	adv7535_write_cec(dev, 0x16, 0x00);
+	// adv7535_write_cec(dev, 0x16, 0x00);
 
 	// Color bars
 	adv7535_write_cec(dev, 0x55, 0x80);
@@ -306,6 +307,53 @@ static int adv7535_enable_test_pattern(const struct device *dev)
 	return 0;
 }
 
+static int adv7535_configure_gpio(const struct device *dev)
+{
+	const struct adv7535_config *config = dev->config;
+	int ret = 0;
+
+	if (config->dt_pd.port) {
+		if (!gpio_is_ready_dt(&config->dt_pd)) {
+			LOG_ERR("GPIO device %s not ready",
+				config->dt_pd.port->name);
+			return -EIO;
+		}
+
+		ret = gpio_pin_configure_dt(&config->dt_pd,
+					    GPIO_OUTPUT_INACTIVE);
+		if (ret) {
+			LOG_ERR("Failed to configure GPIO pin %u",
+				config->dt_pd.pin);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+static int adv7535_reset(const struct device *dev)
+{
+	const struct adv7535_config *config = dev->config;
+	int ret = 0;
+
+	if (config->dt_pd.port) {
+		ret = gpio_pin_set_dt(&config->dt_pd, 1);
+		k_msleep(5);
+		ret |= gpio_pin_set_dt(&config->dt_pd, 0);
+		LOG_DBG("Reset using Power Down pin");
+	} else {
+		ret = adv7535_power_down(dev);
+		ret |= adv7535_power_up(dev);
+		LOG_DBG("Reset using Power Down register");
+	}
+
+	if (ret){
+		LOG_ERR("Failed to preform a reset");
+	}
+
+	return ret;
+}
+
 static int adv7535_init(const struct device *dev)
 {
 	const struct adv7535_config *config = dev->config;
@@ -314,11 +362,15 @@ static int adv7535_init(const struct device *dev)
 	uint8_t revision;
 
 	LOG_ERR("Log from driver init function");
+	printk("Log from driver init function");
 
 	if (!adv7535_i2c_bus_ready(dev)) {
 		LOG_ERR("Bus device %s not ready!", adv7535_i2c_bus_name(dev));
 		return -EINVAL;
 	}
+
+	adv7535_configure_gpio(dev);
+	adv7535_reset(dev);
 
 	// TODO: Set EDID, Packet, CEC and Fixed addresses to values from DTS
 
@@ -362,6 +414,8 @@ static int adv7535_init(const struct device *dev)
 	adv7535_read(dev, 0x00, &revision);
 	LOG_DBG("ADV7535 initialized. Chip Revision: %d", revision);
 
+	// adv7535_reset(dev);
+
 	return 0;
 }
 
@@ -376,7 +430,8 @@ static int adv7535_init(const struct device *dev)
 			.packet_addr = DT_INST_PROP_OR(id, packet_addr, ADV7535_I2C_PACKET_ADDR_DEFAULT ), \
 			.cec_addr = DT_INST_PROP_OR(id, cec_addr, ADV7535_I2C_CEC_ADDR_DEFAULT ), \
 			.fixed_addr = DT_INST_PROP_OR(id, fixed_addr, ADV7535_I2C_FIXED_ADDR_DEFAULT ), \
-		} \
+		}, \
+		.dt_pd = GPIO_DT_SPEC_INST_GET_OR(0, pd_gpios, {0}) \
 	};                                                                                         \
 	static struct adv7535_data data_##id = {                                         \
 		.pixel_format = DT_INST_PROP(id, pixel_format),                                    \

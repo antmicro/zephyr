@@ -18,6 +18,7 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 // static const struct i2c_dt_spec adv7535 = I2C_DT_SPEC_GET(ADV7535_NODE);
 // static const struct gpio_dt_spec adv_reset = GPIO_DT_SPEC_GET(ADV7535_RST_NODE, gpios);
+// static const struct gpio_dt_spec adv_reset = GPIO_DT_SPEC_GET(ADV7535_NODE, pd_gpios);
 
 int main()
 {
@@ -29,6 +30,11 @@ int main()
 
 	// Set ADC7535 reset to high
 	// gpio_pin_configure_dt(&adv_reset, GPIO_OUTPUT_INACTIVE);
+	//
+	// k_msleep(5000);
+	// gpio_pin_set_dt(&adv_reset, 1);
+	// gpio_pin_set_dt(&adv_reset, 0);
+	// LOG_INF("Reset");
 
 	// Check ADC7535 ID registers read
 	// int status = 0;
