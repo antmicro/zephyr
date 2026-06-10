@@ -1,6 +1,9 @@
 /*
  * Copyright (c) 2026 Antmicro <www.antmicro.com>
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Driver implementation based on ST sample from:
+ * https://github.com/STMicroelectronics/stm32-adv7533
  */
 
 #define DT_DRV_COMPAT adi_adv7535
@@ -291,9 +294,13 @@ static int adv7535_enable_test_pattern(const struct device *dev)
 {
 	adv7535_write_cec(dev, 0x16, 0x00);
 
+	// Color bars
 	adv7535_write_cec(dev, 0x55, 0x80);
-	//adv7535_write_cec(dev, 0x55, 0xA0);
-	adv7535_write_cec(dev, 0x03, 0x89);
+
+	// Grayscale gradient
+	// adv7535_write_cec(dev, 0x55, 0xA0);
+
+	// A magic value from from the ST sample (linked at the top of the file)
 	adv7535_write_cec(dev, 0xAF, 0x16);
 
 	return 0;
