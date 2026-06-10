@@ -7,6 +7,7 @@ config ADI_ADV7535
 	default y
 	select MIPI_DSI
 	select I2C
+	select GPIO
 	depends on DT_HAS_ADI_ADV7535_ENABLED
 	help
 	  Enable driver for Analog Devices ADV7535 DSI-to-HDMI display bridge.
