@@ -335,7 +335,7 @@
 		dsi-channel = <2>;
 		data-lanes = <2>;
 		pixel-format = <MIPI_DSI_PIXFMT_RGB888>;
-		pd-gpios = <&gpiog 7 GPIO_ACTIVE_LOW>; /* I think this is const low on my board */
+		/* pd-gpios = <&gpiog 7 GPIO_ACTIVE_LOW>; */
 		status = "okay";
 	};
 };
