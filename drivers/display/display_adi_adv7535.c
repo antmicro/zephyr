@@ -289,14 +289,12 @@ static int adv7535_dsi_power_on(const struct device *dev)
 
 static int adv7535_enable_test_pattern(const struct device *dev)
 {
+	adv7535_write_cec(dev, 0x16, 0x00);
+
 	adv7535_write_cec(dev, 0x55, 0x80);
-	k_msleep(2000);
-	adv7535_write_cec(dev, 0x55, 0xA0);
-	k_msleep(2000);
-	adv7535_write_cec(dev, 0x55, 0x89);
-	k_msleep(2000);
-	adv7535_write_cec(dev, 0x55, 0x16);
-	k_msleep(2000);
+	//adv7535_write_cec(dev, 0x55, 0xA0);
+	adv7535_write_cec(dev, 0x03, 0x89);
+	adv7535_write_cec(dev, 0xAF, 0x16);
 
 	return 0;
 }
