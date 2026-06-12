@@ -236,6 +236,29 @@ static int adv7535_attach_to_mipi_dsi_host(const struct device* dev)
 	return 0;
 }
 
+static int adv7535_set_i2c_addresses(const struct device *dev)
+{
+	const struct adv7535_config *config = dev->config;
+	struct reg_val_pair addresses[] = {
+		{ ADV7535_REG_EDID_ADDR, config->i2c_conf.edid_addr},
+		{ ADV7535_REG_PACKET_MEM_ADDR, config->i2c_conf.packet_addr},
+		{ ADV7535_REG_CEC_ADDR, config->i2c_conf.cec_addr},
+		{ ADV7535_REG_FIXED_ADDR, config->i2c_conf.fixed_addr},
+	};
+	int ret = 0;
+
+	/* NOTE: Main address is set by the state on the Power Down pin during power up */
+
+	ARRAY_FOR_EACH(addresses, i) {
+		ret = adv7535_write(dev, addresses[i].reg, addresses[i].val << 1);
+		if (ret) {
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 static int adv7535_dsi_power_on(const struct device *dev)
 {
 	const struct adv7535_config *config = dev->config;
@@ -368,10 +391,24 @@ static int adv7535_init(const struct device *dev)
 		return -EINVAL;
 	}
 
-	adv7535_configure_gpio(dev);
-	adv7535_reset(dev);
+	ret = adv7535_configure_gpio(dev);
+	if (ret) {
+		LOG_ERR("Failed configuring GPIO");
+		return ret;
+	}
 
-	// TODO: Set EDID, Packet, CEC and Fixed addresses to values from DTS
+	ret = adv7535_reset(dev);
+	if (ret) {
+		LOG_ERR("Failed reseting the device");
+		return ret;
+
+	}
+
+	ret = adv7535_set_i2c_addresses(dev);
+	if (ret) {
+		LOG_ERR("Failed setting the I2C addresses");
+		return ret;
+	}
 
 	// Override HPD to be high so adv7535 can turn on
 	uint8_t hpd_control_register;
