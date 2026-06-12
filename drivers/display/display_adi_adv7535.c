@@ -316,7 +316,12 @@ static int adv7535_dsi_power_on(const struct device *dev)
 
 static int adv7535_enable_test_pattern(const struct device *dev)
 {
-	// adv7535_write_cec(dev, 0x16, 0x00);
+	// TODO: Make the test pattern configurable in the DTS
+	// test-pattern = <0>; = Off (Default)
+	// test-pattern = <1>; = Color Bars
+	// test-pattern = <2>; = Grayscale gradient
+
+	// adv7535_write_cec(dev, 0x16, 0x00); // Maybe needed? Works without it
 
 	// Color bars
 	adv7535_write_cec(dev, 0x55, 0x80);
