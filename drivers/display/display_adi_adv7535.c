@@ -362,7 +362,6 @@ static int adv7535_init(const struct device *dev)
 	uint8_t revision;
 
 	LOG_ERR("Log from driver init function");
-	printk("Log from driver init function");
 
 	if (!adv7535_i2c_bus_ready(dev)) {
 		LOG_ERR("Bus device %s not ready!", adv7535_i2c_bus_name(dev));
@@ -419,6 +418,20 @@ static int adv7535_init(const struct device *dev)
 	return 0;
 }
 
+#define ADV7535_IS_PD_ACTIVE_LOW(id) (DT_INST_GPIO_FLAGS(id, pd_gpios) & GPIO_ACTIVE_LOW)
+
+#define ADV7535_IS_PD_AND_ADDR_VALID(id) \
+	((DT_INST_REG_ADDR(id) == 0x39 && !(ADV7535_IS_PD_ACTIVE_LOW(id))) || \
+	(DT_INST_REG_ADDR(id) == 0x3d && (ADV7535_IS_PD_ACTIVE_LOW(id))))
+
+#define ADV7535_VALIDATE_PD_AND_ADDR(id) \
+	IF_ENABLED(DT_INST_NODE_HAS_PROP(id, pd_gpios), \
+	(BUILD_ASSERT((ADV7535_IS_PD_AND_ADDR_VALID(id)), \
+		"ADV7535 I2C address does not match pd-gpios polarity. " \
+		"0x39 requres active high, 0x3d requres active low." \
+	      )) \
+	);
+
 #define ADV7535_DEFINE(id)                                                               \
 	static const struct adv7535_config config_##id = {                               \
 		.mipi_dsi_host = DEVICE_DT_GET(DT_INST_PHANDLE(id, mipi_dsi)),                          \
@@ -426,10 +439,10 @@ static int adv7535_init(const struct device *dev)
 		.num_of_lanes = DT_INST_PROP_BY_IDX(id, data_lanes, 0),                            \
 		.i2c_conf = { \
 			.i2c = I2C_DT_SPEC_INST_GET(id),                                          \
-			.edid_addr = DT_INST_PROP_OR(id, edid_addr, ADV7535_I2C_EDID_ADDR_DEFAULT ), \
-			.packet_addr = DT_INST_PROP_OR(id, packet_addr, ADV7535_I2C_PACKET_ADDR_DEFAULT ), \
-			.cec_addr = DT_INST_PROP_OR(id, cec_addr, ADV7535_I2C_CEC_ADDR_DEFAULT ), \
-			.fixed_addr = DT_INST_PROP_OR(id, fixed_addr, ADV7535_I2C_FIXED_ADDR_DEFAULT ), \
+			.edid_addr = DT_INST_PROP_OR(id, edid_addr, ADV7535_I2C_EDID_ADDR_DEFAULT), \
+			.packet_addr = DT_INST_PROP_OR(id, packet_addr, ADV7535_I2C_PACKET_ADDR_DEFAULT), \
+			.cec_addr = DT_INST_PROP_OR(id, cec_addr, ADV7535_I2C_CEC_ADDR_DEFAULT), \
+			.fixed_addr = DT_INST_PROP_OR(id, fixed_addr, ADV7535_I2C_FIXED_ADDR_DEFAULT), \
 		}, \
 		.dt_pd = GPIO_DT_SPEC_INST_GET_OR(0, pd_gpios, {0}) \
 	};                                                                                         \
@@ -437,6 +450,7 @@ static int adv7535_init(const struct device *dev)
 		.pixel_format = DT_INST_PROP(id, pixel_format),                                    \
 	};                                                                                         \
 	DEVICE_DT_INST_DEFINE(id, adv7535_init, NULL, &data_##id, &config_##id,          \
-			      POST_KERNEL, CONFIG_DISPLAY_INIT_PRIORITY, NULL);
+			      POST_KERNEL, CONFIG_DISPLAY_INIT_PRIORITY, NULL); \
+	ADV7535_VALIDATE_PD_AND_ADDR(id)
 
 DT_INST_FOREACH_STATUS_OKAY(ADV7535_DEFINE)
