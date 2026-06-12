@@ -336,6 +336,7 @@
 		data-lanes = <2>;
 		pixel-format = <MIPI_DSI_PIXFMT_RGB888>;
 		pd-gpios = <&gpiog 7 GPIO_ACTIVE_HIGH>;
+		int-gpios = <&gpiok 2 GPIO_ACTIVE_LOW>; /* It is pulled up using a hardware restistor */
 		status = "okay";
 	};
 };

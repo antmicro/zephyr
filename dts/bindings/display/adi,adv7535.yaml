@@ -93,3 +93,11 @@ properties:
       register-based reset. The I2C address and power-down polarity are sampled
       when power is applied. To change either setting, set the pin to the
       desired level and power-cycle the board.
+
+  int-gpios:
+    type: phandle-array
+    required: true
+    description: |
+      Interrupt pin of ADV7535, active-low.
+      If connected directly to the MCU,
+      should be configured as open-drain, active-low.
