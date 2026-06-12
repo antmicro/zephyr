@@ -444,7 +444,7 @@ static int adv7535_init(const struct device *dev)
 			.cec_addr = DT_INST_PROP_OR(id, cec_addr, ADV7535_I2C_CEC_ADDR_DEFAULT), \
 			.fixed_addr = DT_INST_PROP_OR(id, fixed_addr, ADV7535_I2C_FIXED_ADDR_DEFAULT), \
 		}, \
-		.dt_pd = GPIO_DT_SPEC_INST_GET_OR(0, pd_gpios, {0}) \
+		.dt_pd = GPIO_DT_SPEC_INST_GET_OR(id, pd_gpios, {0}) \
 	};                                                                                         \
 	static struct adv7535_data data_##id = {                                         \
 		.pixel_format = DT_INST_PROP(id, pixel_format),                                    \
