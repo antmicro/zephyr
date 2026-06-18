@@ -21,6 +21,11 @@
 
 LOG_MODULE_REGISTER(adi_adv7535, CONFIG_DISPLAY_LOG_LEVEL);
 
+#define CONFIG_ADV7535_THREAD_STACK_SIZE 1024 // TODO: Add kconfig for this
+
+static K_KERNEL_STACK_DEFINE(drv_stack, CONFIG_ADV7535_THREAD_STACK_SIZE);
+static struct k_thread drv_stack_data;
+
 struct adv7535_i2c_conf {
 	uint8_t edid_addr;
 	uint8_t packet_addr;
@@ -35,11 +40,12 @@ struct adv7535_config {
 	uint8_t num_of_lanes;
 	struct adv7535_i2c_conf i2c_conf;
 	struct gpio_dt_spec dt_pd;
+	struct gpio_dt_spec dt_int;
 };
 
 struct adv7535_data {
-	uint8_t enable_1_reg;
-	uint8_t enable_2_reg;
+	struct gpio_callback int_gpio_cb;
+	struct k_sem irq_sem;
 	uint8_t pixel_format;
 };
 
@@ -100,6 +106,38 @@ static int adv7535_read(const struct device *dev, uint8_t reg, uint8_t *buf)
 {
 	const struct adv7535_config *config = dev->config;
 	return adv7535_generic_read(dev, config->i2c_conf.i2c.addr, reg, buf);
+}
+
+static int adv7535_write_bit(const struct device *dev, uint8_t reg, uint8_t bit, uint8_t val)
+{
+	int ret;
+	uint8_t buf;
+
+	ret = adv7535_read(dev, reg, &buf);
+	if (ret) {
+		return ret;
+	}
+
+	buf &= ~bit;
+	buf |= val;
+
+	return adv7535_write(dev, reg, buf);
+}
+
+static int adv7535_read_bit(const struct device *dev, uint8_t reg, uint8_t bit, uint8_t *buf)
+{
+	int ret;
+	uint8_t byte_buf;
+
+	ret = adv7535_read(dev, reg, &byte_buf);
+	if (ret) {
+		return ret;
+	}
+
+	byte_buf &= bit;
+	*buf = (bool)(byte_buf);
+
+	return 0;
 }
 
 static int adv7535_write_cec(const struct device *dev, uint8_t reg, uint8_t val)
@@ -335,7 +373,7 @@ static int adv7535_enable_test_pattern(const struct device *dev)
 	return 0;
 }
 
-static int adv7535_configure_gpio(const struct device *dev)
+static int adv7535_configure_rst_gpio(const struct device *dev)
 {
 	const struct adv7535_config *config = dev->config;
 	int ret = 0;
@@ -357,6 +395,155 @@ static int adv7535_configure_gpio(const struct device *dev)
 	}
 
 	return ret;
+}
+
+static int adv7535_handle_hpd(const struct device *dev, uint8_t int_0_reg)
+{
+	int ret;
+	uint8_t hpd_state, monitor_sense_state, state_reg;
+	bool is_hpd = int_0_reg & ADV7535_INT_0_HPD;
+	bool is_monitor_sense = int_0_reg & ADV7535_INT_0_MONITOR_SENSE;
+
+	if (!is_hpd && !is_monitor_sense){
+		/* No connect/disconnect event */
+		return 0;
+	}
+
+	LOG_DBG("Connect/Disconnect Detected!");
+
+	ret = adv7535_read(dev, ADV7535_REG_PORT_STATE, &state_reg);
+	if (ret) {
+		return ret;
+	}
+
+	hpd_state = state_reg & ADV7535_HPD_STATE;
+	monitor_sense_state= state_reg & ADV7535_MONITOR_SENSE_STATE;
+
+	// NOTE: Currently connection detection is unreliable
+	LOG_DBG("HPD: %d, MS: %d", is_hpd, is_monitor_sense);
+	LOG_DBG("Connection state: %s", hpd_state ? "Connected" : "Disconnected");
+	LOG_DBG("Monitor Connection state: %s", monitor_sense_state ? "Connected" : "Disconnected");
+
+	// TODO: On hpd detection power up the chip and set all of the reset registers
+
+	return 0;
+}
+
+static void adv7535_thread(void *p1, void *p2, void *p3)
+{
+	ARG_UNUSED(p2);
+	ARG_UNUSED(p3);
+
+	struct device *dev = p1;
+	struct adv7535_data *data = dev->data;
+
+	LOG_WRN("ADV7535 Thread started");
+
+	while (true) {
+		uint8_t int_0_reg, int_1_reg;
+		int ret;
+
+		k_sem_take(&data->irq_sem, K_FOREVER);
+
+		LOG_DBG("Interrupt!");
+
+		adv7535_read(dev, ADV7535_REG_INT_0, &int_0_reg);
+		adv7535_read(dev, ADV7535_REG_INT_1, &int_1_reg);
+
+		ret = adv7535_handle_hpd(dev, int_0_reg);
+
+		/* Clear all interrupts */
+		adv7535_write(dev, ADV7535_REG_INT_0, int_0_reg);
+		adv7535_write(dev, ADV7535_REG_INT_1, int_1_reg);
+	}
+}
+
+static void adv7535_int_gpio_cb(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
+{
+	struct adv7535_data *data = CONTAINER_OF(cb, struct adv7535_data, int_gpio_cb);
+
+	k_sem_give(&data->irq_sem);
+}
+
+static int adv7535_remove_int_callback(const struct device *dev)
+{
+	const struct adv7535_config *config = dev->config;
+	struct adv7535_data *data = dev->data;
+
+	return gpio_remove_callback_dt(&config->dt_int, &data->int_gpio_cb);
+}
+
+static int adv7535_configure_int_gpio(const struct device *dev)
+{
+	const struct adv7535_config *config = dev->config;
+	struct adv7535_data *data = dev->data;
+	int ret = 0;
+
+	gpio_init_callback(&data->int_gpio_cb, adv7535_int_gpio_cb,
+			  BIT(config->dt_int.pin));
+
+	ret = gpio_add_callback_dt(&config->dt_int, &data->int_gpio_cb);
+	if (ret) {
+		goto error;
+	}
+
+	ret = gpio_pin_configure_dt(&config->dt_int, GPIO_INPUT);
+	if (ret) {
+		goto error;
+	}
+
+	ret = gpio_pin_interrupt_configure_dt(&config->dt_int, GPIO_INT_EDGE_TO_ACTIVE);
+	if (ret) {
+		goto error;
+	}
+
+	return 0;
+
+error:
+	adv7535_remove_int_callback(dev);
+	return ret;
+}
+
+static int adv7535_enable_interrupts(const struct device *dev)
+{
+	/* Enable hdmi connect/disconnect detection */
+	return adv7535_write(dev, ADV7535_REG_INT_ENABLE_0,
+				ADV7535_INT_0_HPD | ADV7535_INT_0_MONITOR_SENSE);
+}
+
+static int adv7535_disable_and_clear_all_interrupts(const struct device *dev)
+{
+	const struct adv7535_config *config = dev->config;
+	struct adv7535_data *data = dev->data;
+	int ret;
+
+	uint8_t int_enable_regs[] = {
+		ADV7535_REG_CEC_INT_ENABLE,
+		ADV7535_REG_INT_ENABLE_0,
+		ADV7535_REG_INT_ENABLE_1,
+	};
+
+	uint8_t int_regs[] = {
+		ADV7535_REG_INT_0,
+		ADV7535_REG_INT_1,
+		ADV7535_REG_CEC_INT
+	};
+
+	ARRAY_FOR_EACH(int_enable_regs, i) {
+		ret = adv7535_write(dev, int_enable_regs[i], 0);
+		if (ret) {
+			return ret;
+		}
+	}
+
+	ARRAY_FOR_EACH(int_regs, i) {
+		ret = adv7535_write(dev, int_regs[i], 0xff);
+		if (ret) {
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static int adv7535_reset(const struct device *dev)
@@ -396,9 +583,9 @@ static int adv7535_init(const struct device *dev)
 		return -EINVAL;
 	}
 
-	ret = adv7535_configure_gpio(dev);
+	ret = adv7535_configure_rst_gpio(dev);
 	if (ret) {
-		LOG_ERR("Failed configuring GPIO");
+		LOG_ERR("Failed configuring reset GPIO");
 		return ret;
 	}
 
@@ -415,19 +602,38 @@ static int adv7535_init(const struct device *dev)
 		return ret;
 	}
 
-	// Override HPD to be high so adv7535 can turn on
-	uint8_t hpd_control_register;
-	adv7535_read(dev, 0xd6, &hpd_control_register);
-	hpd_control_register |= 0x40U;
-	adv7535_write(dev, 0xd6, hpd_control_register);
+	ret = adv7535_disable_and_clear_all_interrupts(dev);
+	if (ret) {
+		LOG_ERR("Failed disabling interrupts");
+		return ret;
+	}
 
-	/* Is adv7535_power_down call needed here? */
+	ret = adv7535_configure_int_gpio(dev);
+	if (ret) {
+		LOG_ERR("Failed configuring interrupt GPIO");
+		goto error;
+	}
+
+	ret = adv7535_enable_interrupts(dev);
+	if (ret) {
+		LOG_ERR("Failed enabling interrupts");
+		goto error;
+	}
+
+	// Override HPD to be high so adv7535 can turn on
+	// uint8_t hpd_control_register;
+	// adv7535_read(dev, 0xd6, &hpd_control_register);
+	// hpd_control_register |= 0x40U;
+	// adv7535_write(dev, 0xd6, hpd_control_register);
+
+	/* Is adv7535_power_down/up call needed here? */
 	// adv7535_power_down(dev);
 	adv7535_power_up(dev);
 
 	ret = adv7535_set_fixed_registers(dev);
 	if (ret){
 		LOG_ERR("Failed to set fixed registers: %d", ret);
+		goto error;
 	}
 
 	/* Disable all packets */
@@ -437,6 +643,7 @@ static int adv7535_init(const struct device *dev)
 	ret = adv7535_set_cec_fixed_registers(dev);
 	if (ret){
 		LOG_ERR("Failed to set CEC fixed registers: %d", ret);
+		goto error;
 	}
 
 	/* Enable CEC */
@@ -448,16 +655,24 @@ static int adv7535_init(const struct device *dev)
 	ret = adv7535_attach_to_mipi_dsi_host(dev);
 	if (ret) {
 		LOG_ERR("Failed to attach to MIPI DSI host: %d", ret);
-		return ret;
+		goto error;
 	}
+
+	// TODO: Evaluated what priority should this thraed have
+	k_thread_create(&drv_stack_data, drv_stack, K_KERNEL_STACK_SIZEOF(drv_stack),
+			adv7535_thread, (void*)dev, NULL, NULL,
+			K_PRIO_COOP(2), 0, K_NO_WAIT);
+	k_thread_name_set(&drv_stack_data, "adv7535");
 
 	// TODO: Add general info here like i2c addresses, channel etc.
 	adv7535_read(dev, 0x00, &revision);
 	LOG_DBG("ADV7535 initialized. Chip Revision: %d", revision);
 
-	// adv7535_reset(dev);
-
 	return 0;
+
+error:
+	adv7535_remove_int_callback(dev);
+	return ret;
 }
 
 #define ADV7535_IS_PD_ACTIVE_LOW(id) (DT_INST_GPIO_FLAGS(id, pd_gpios) & GPIO_ACTIVE_LOW)
@@ -486,10 +701,12 @@ static int adv7535_init(const struct device *dev)
 			.cec_addr = DT_INST_PROP_OR(id, cec_addr, ADV7535_I2C_CEC_ADDR_DEFAULT), \
 			.fixed_addr = DT_INST_PROP_OR(id, fixed_addr, ADV7535_I2C_FIXED_ADDR_DEFAULT), \
 		}, \
-		.dt_pd = GPIO_DT_SPEC_INST_GET_OR(id, pd_gpios, {0}) \
+		.dt_pd = GPIO_DT_SPEC_INST_GET_OR(id, pd_gpios, {0}), \
+		.dt_int = GPIO_DT_SPEC_INST_GET(id, int_gpios) \
 	};                                                                                         \
 	static struct adv7535_data data_##id = {                                         \
 		.pixel_format = DT_INST_PROP(id, pixel_format),                                    \
+		.irq_sem = Z_SEM_INITIALIZER(data_##id.irq_sem, 0, 1) \
 	};                                                                                         \
 	DEVICE_DT_INST_DEFINE(id, adv7535_init, NULL, &data_##id, &config_##id,          \
 			      POST_KERNEL, CONFIG_DISPLAY_INIT_PRIORITY, NULL); \
