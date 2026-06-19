@@ -83,6 +83,11 @@
 #define ADV7535_HPD_STATE BIT(6)
 #define ADV7535_MONITOR_SENSE_STATE BIT(5)
 
+enum connection_state {
+	CONNECTED,
+	DISCONNECTED
+};
+
 struct reg_val_pair {
 	uint8_t reg, val;
 };

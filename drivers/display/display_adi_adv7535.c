@@ -46,6 +46,7 @@ struct adv7535_config {
 struct adv7535_data {
 	struct gpio_callback int_gpio_cb;
 	struct k_sem irq_sem;
+	enum connection_state conn_state;
 	uint8_t pixel_format;
 };
 
@@ -397,32 +398,34 @@ static int adv7535_configure_rst_gpio(const struct device *dev)
 	return ret;
 }
 
-static int adv7535_handle_hpd(const struct device *dev, uint8_t int_0_reg)
+static int adv7535_handle_monitor_sense(const struct device *dev, uint8_t int_0_reg)
 {
+	struct adv7535_data *data = dev->data;
+
 	int ret;
-	uint8_t hpd_state, monitor_sense_state, state_reg;
-	bool is_hpd = int_0_reg & ADV7535_INT_0_HPD;
+	uint8_t monitor_sense_state;
 	bool is_monitor_sense = int_0_reg & ADV7535_INT_0_MONITOR_SENSE;
 
-	if (!is_hpd && !is_monitor_sense){
+	if (!is_monitor_sense){
 		/* No connect/disconnect event */
 		return 0;
 	}
 
-	LOG_DBG("Connect/Disconnect Detected!");
-
-	ret = adv7535_read(dev, ADV7535_REG_PORT_STATE, &state_reg);
+	ret = adv7535_read_bit(dev, ADV7535_REG_PORT_STATE, ADV7535_MONITOR_SENSE_STATE, &monitor_sense_state);
 	if (ret) {
 		return ret;
 	}
 
-	hpd_state = state_reg & ADV7535_HPD_STATE;
-	monitor_sense_state= state_reg & ADV7535_MONITOR_SENSE_STATE;
-
-	// NOTE: Currently connection detection is unreliable
-	LOG_DBG("HPD: %d, MS: %d", is_hpd, is_monitor_sense);
-	LOG_DBG("Connection state: %s", hpd_state ? "Connected" : "Disconnected");
-	LOG_DBG("Monitor Connection state: %s", monitor_sense_state ? "Connected" : "Disconnected");
+	if (data->conn_state == CONNECTED && !monitor_sense_state) {
+		data->conn_state = DISCONNECTED;
+		LOG_DBG("Disconnect detected");
+	} else if (data->conn_state == DISCONNECTED && monitor_sense_state){
+		data->conn_state = CONNECTED;
+		LOG_DBG("Connect detected");
+	} else {
+		/* Connection change interrupt, but the state is not different */
+		return 0;
+	}
 
 	// TODO: On hpd detection power up the chip and set all of the reset registers
 
@@ -435,9 +438,10 @@ static void adv7535_thread(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p3);
 
 	struct device *dev = p1;
+	const struct adv7535_config *config = dev->config;
 	struct adv7535_data *data = dev->data;
 
-	LOG_WRN("ADV7535 Thread started");
+	LOG_DBG("ADV7535 Thread started");
 
 	while (true) {
 		uint8_t int_0_reg, int_1_reg;
@@ -447,14 +451,26 @@ static void adv7535_thread(void *p1, void *p2, void *p3)
 
 		LOG_DBG("Interrupt!");
 
-		adv7535_read(dev, ADV7535_REG_INT_0, &int_0_reg);
-		adv7535_read(dev, ADV7535_REG_INT_1, &int_1_reg);
+		do {
+			adv7535_read(dev, ADV7535_REG_INT_0, &int_0_reg);
+			adv7535_read(dev, ADV7535_REG_INT_1, &int_1_reg);
 
-		ret = adv7535_handle_hpd(dev, int_0_reg);
+			ret = adv7535_handle_monitor_sense(dev, int_0_reg);
 
-		/* Clear all interrupts */
-		adv7535_write(dev, ADV7535_REG_INT_0, int_0_reg);
-		adv7535_write(dev, ADV7535_REG_INT_1, int_1_reg);
+			/* Clear all interrupts */
+			adv7535_write(dev, ADV7535_REG_INT_0, int_0_reg);
+			adv7535_write(dev, ADV7535_REG_INT_1, int_1_reg);
+
+		/* We check interrupt gpio again to make sure a new interrupt did not occur,
+		 * while we were handling the current one.
+		 *
+		 * ADV7535 signals a presence of a interrupt by pulling interrupt pin low,
+		 * it goes to high only while all interrupts have been resolved.
+		 *
+		 * Since not all boards support GPIO_INT_LEVEL_LOW or GPIO_INT_LEVEL_ACTIVE,
+		 * we use GPIO_INT_EDGE_TO_ACTIVE and just recheck interrupt gpio state.
+		 */
+		} while (gpio_pin_get_dt(&config->dt_int));
 	}
 }
 
@@ -507,8 +523,7 @@ error:
 static int adv7535_enable_interrupts(const struct device *dev)
 {
 	/* Enable hdmi connect/disconnect detection */
-	return adv7535_write(dev, ADV7535_REG_INT_ENABLE_0,
-				ADV7535_INT_0_HPD | ADV7535_INT_0_MONITOR_SENSE);
+	return adv7535_write(dev, ADV7535_REG_INT_ENABLE_0,ADV7535_INT_0_MONITOR_SENSE);
 }
 
 static int adv7535_disable_and_clear_all_interrupts(const struct device *dev)
@@ -569,6 +584,22 @@ static int adv7535_reset(const struct device *dev)
 	return ret;
 }
 
+static int adv7535_set_data(const struct device *dev)
+{
+	struct adv7535_data *data = dev->data;
+	int ret;
+	uint8_t monitor_sense_state;
+
+	ret = adv7535_read_bit(dev, ADV7535_REG_PORT_STATE, ADV7535_MONITOR_SENSE_STATE, &monitor_sense_state);
+	if (ret) {
+		return ret;
+	}
+
+	data->conn_state = monitor_sense_state ? CONNECTED : DISCONNECTED;
+
+	return 0;
+}
+
 static int adv7535_init(const struct device *dev)
 {
 	const struct adv7535_config *config = dev->config;
@@ -617,6 +648,12 @@ static int adv7535_init(const struct device *dev)
 	ret = adv7535_enable_interrupts(dev);
 	if (ret) {
 		LOG_ERR("Failed enabling interrupts");
+		goto error;
+	}
+
+	ret = adv7535_set_data(dev);
+	if (ret) {
+		LOG_ERR("Failed to set adv7535 data values");
 		goto error;
 	}
 
