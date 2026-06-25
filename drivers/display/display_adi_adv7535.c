@@ -295,6 +295,8 @@ static int adv7535_power_up(const struct device *dev)
 
 static int adv7535_power_down(const struct device *dev)
 {
+	/* TODO: Verify this does not need to do more things */
+
 	int ret = 0;
 	uint8_t pd_bit;
 
