@@ -210,21 +210,17 @@ static int adv7535_set_cec_fixed_registers(const struct device* dev)
 static int adv7535_power_up(const struct device *dev)
 {
 	int ret = 0;
-	uint8_t pd_reg;
+	uint8_t pd_bit;
 
-	ret = adv7535_read(dev, ADV7535_REG_POWER, &pd_reg);
+	ret = adv7535_read_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, &pd_bit);
 	if (ret) {
 		return ret;
 	}
 
-	if (pd_reg & ADV7535_POWER_DOWN){
-		ret = adv7535_write(dev, ADV7535_REG_POWER, pd_reg & ~ADV7535_POWER_DOWN);
-		if (ret) {
-			return ret;
-		}
+	if (pd_bit) {
+		ret = adv7535_write_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, 0);
 	} else {
-		LOG_INF("Tried to power up ADV7535, while it is already powered up");
-		return 0;
+		LOG_INF("Powering up ADV7535, while it is already powered up");
 	}
 
 	return ret;
@@ -233,21 +229,17 @@ static int adv7535_power_up(const struct device *dev)
 static int adv7535_power_down(const struct device *dev)
 {
 	int ret = 0;
-	uint8_t pd_reg;
+	uint8_t pd_bit;
 
-	ret = adv7535_read(dev, ADV7535_REG_POWER, &pd_reg);
+	ret = adv7535_read_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, &pd_bit);
 	if (ret) {
 		return ret;
 	}
 
-	if (pd_reg & ADV7535_POWER_DOWN){
-		LOG_INF("Tried to power down ADV7535, while it is already powered down");
-		return 0;
+	if (pd_bit) {
+		LOG_INF("Powering down ADV7535, while it is already powered down");
 	} else {
-		ret = adv7535_write(dev, ADV7535_REG_POWER, pd_reg | ADV7535_POWER_DOWN);
-		if (ret) {
-			return ret;
-		}
+		ret = adv7535_write_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, 0);
 	}
 
 	return ret;
