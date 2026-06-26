@@ -304,8 +304,40 @@ static int adv7535_configure(const struct device *dev)
 
 	// Linux driver sets high/low hsync and vsync polarity in adv7511_mode_set,
 	// our dsi host in dts has polarity set to high which is the default in adv
-	//
-	//
+
+	/*
+	 * Linux adv7533_dsi_config_timing_gen() packs each timing value as:
+	 *   high byte: timing >> 4
+	 *   low byte:  (timing << 4) & 0xff
+	 *
+	 * htotal = 800 + 34 + 2 + 34 = 870 = 0x366 -> 0x36, 0x60
+	 * hsw    = 2                         = 0x002 -> 0x00, 0x20
+	 * hfp    = 34                        = 0x022 -> 0x02, 0x20
+	 * hbp    = 34                        = 0x022 -> 0x02, 0x20
+	 * vtotal = 480 + 150 + 120 + 150 = 900 = 0x384 -> 0x38, 0x40
+	 * vsw    = 120                       = 0x078 -> 0x07, 0x80
+	 * vfp    = 150                       = 0x096 -> 0x09, 0x60
+	 * vbp    = 150                       = 0x096 -> 0x09, 0x60
+	 *
+	 * clock_div_by_lanes[2 - 2] << 3 = 6 << 3 = 0x30
+	 */
+	adv7535_write_cec(dev, 0x16, 0x30);
+	adv7535_write_cec(dev, 0x28, 0x36);
+	adv7535_write_cec(dev, 0x29, 0x60);
+	adv7535_write_cec(dev, 0x2a, 0x00);
+	adv7535_write_cec(dev, 0x2b, 0x20);
+	adv7535_write_cec(dev, 0x2c, 0x02);
+	adv7535_write_cec(dev, 0x2d, 0x20);
+	adv7535_write_cec(dev, 0x2e, 0x02);
+	adv7535_write_cec(dev, 0x2f, 0x20);
+	adv7535_write_cec(dev, 0x30, 0x38);
+	adv7535_write_cec(dev, 0x31, 0x40);
+	adv7535_write_cec(dev, 0x32, 0x07);
+	adv7535_write_cec(dev, 0x33, 0x80);
+	adv7535_write_cec(dev, 0x34, 0x09);
+	adv7535_write_cec(dev, 0x35, 0x60);
+	adv7535_write_cec(dev, 0x36, 0x09);
+	adv7535_write_cec(dev, 0x37, 0x60);
 
 	return 0;
 }
