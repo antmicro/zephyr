@@ -291,6 +291,25 @@ static int adv7535_enable_test_pattern(const struct device *dev)
 	return 0;
 }
 
+static int adv7535_configure(const struct device *dev)
+{
+
+	// Set HDMI/DVI Mode (1 = HDMI; 0 = DVI)
+	// Works only with DVI
+	adv7535_write_bit(dev, 0xaf, BIT(1), 0);
+
+	// These are defaults
+	// adv7535_write_bit(dev, 0xaf, BIT(7), 0);
+	// adv7535_write_bit(dev, 0xaf, BIT(0), 0);
+
+	// Linux driver sets high/low hsync and vsync polarity in adv7511_mode_set,
+	// our dsi host in dts has polarity set to high which is the default in adv
+	//
+	//
+
+	return 0;
+}
+
 static int adv7535_power_up(const struct device *dev)
 {
 	int ret = 0;
@@ -310,6 +329,8 @@ static int adv7535_power_up(const struct device *dev)
 	adv7535_enable_interrupts(dev);
 	adv7535_dsi_power_on(dev);
 	adv7535_set_cec_fixed_registers(dev);
+
+	adv7535_configure(dev);
 
 	adv7535_enable_test_pattern(dev);
 
@@ -347,8 +368,8 @@ static int adv7535_attach_to_mipi_dsi_host(const struct device* dev)
 	mdev.data_lanes = config->num_of_lanes;
 	mdev.pixfmt = data->pixel_format;
 
-	mdev.mode_flags =
-		MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	mdev.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE
+			  | MIPI_DSI_MODE_EOT_PACKET | MIPI_DSI_MODE_VIDEO_HSE;
 
 	ret = mipi_dsi_attach(config->mipi_dsi_host, config->channel, &mdev);
 	if (ret < 0) {
