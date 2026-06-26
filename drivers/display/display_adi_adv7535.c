@@ -270,6 +270,27 @@ static int adv7535_dsi_power_on(const struct device *dev)
 	return ret;
 }
 
+static int adv7535_enable_test_pattern(const struct device *dev)
+{
+	// TODO: Make the test pattern configurable in the DTS
+	// test-pattern = <0>; = Off (Default)
+	// test-pattern = <1>; = Color Bars
+	// test-pattern = <2>; = Grayscale gradient
+
+	// adv7535_write_cec(dev, 0x16, 0x00); // Maybe needed? Works without it
+
+	// Color bars
+	adv7535_write_cec(dev, 0x55, 0x80);
+
+	// Grayscale gradient
+	// adv7535_write_cec(dev, 0x55, 0xA0);
+
+	// A magic value from from the ST sample (linked at the top of the file)
+	adv7535_write_cec(dev, 0xAF, 0x16);
+
+	return 0;
+}
+
 static int adv7535_power_up(const struct device *dev)
 {
 	int ret = 0;
@@ -289,6 +310,8 @@ static int adv7535_power_up(const struct device *dev)
 	adv7535_enable_interrupts(dev);
 	adv7535_dsi_power_on(dev);
 	adv7535_set_cec_fixed_registers(dev);
+
+	adv7535_enable_test_pattern(dev);
 
 	return ret;
 }
@@ -359,27 +382,6 @@ static int adv7535_set_i2c_addresses(const struct device *dev)
 	return ret;
 }
 
-static int adv7535_enable_test_pattern(const struct device *dev)
-{
-	// TODO: Make the test pattern configurable in the DTS
-	// test-pattern = <0>; = Off (Default)
-	// test-pattern = <1>; = Color Bars
-	// test-pattern = <2>; = Grayscale gradient
-
-	// adv7535_write_cec(dev, 0x16, 0x00); // Maybe needed? Works without it
-
-	// Color bars
-	adv7535_write_cec(dev, 0x55, 0x80);
-
-	// Grayscale gradient
-	// adv7535_write_cec(dev, 0x55, 0xA0);
-
-	// A magic value from from the ST sample (linked at the top of the file)
-	adv7535_write_cec(dev, 0xAF, 0x16);
-
-	return 0;
-}
-
 static int adv7535_configure_rst_gpio(const struct device *dev)
 {
 	const struct adv7535_config *config = dev->config;
@@ -424,9 +426,12 @@ static int adv7535_handle_monitor_sense(const struct device *dev, uint8_t int_0_
 	}
 	new_conn_state = monitor_sense_state ? CONNECTED : DISCONNECTED;
 
+	// TODO: When probing initially for display also call power up etc
+	// TODO: Then add a if here to check if state changed DISCONNECT -> CONNECT
 	if (new_conn_state == CONNECTED) {
 		adv7535_power_up(dev);
 	}
+	// TODO: Handle DISCONNECT
 
 	if (data->conn_state != new_conn_state) {
 		data->conn_state = new_conn_state;
@@ -683,9 +688,6 @@ static int adv7535_init(const struct device *dev)
 
 	/* Enable CEC */
 	adv7535_write(dev, ADV7535_REG_CEC_POWER_DOWN, ADV7535_CEC_POWER_DOWN);
-
-	adv7535_dsi_power_on(dev);
-	adv7535_enable_test_pattern(dev);
 
 	ret = adv7535_attach_to_mipi_dsi_host(dev);
 	if (ret) {
