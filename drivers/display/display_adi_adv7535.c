@@ -384,6 +384,7 @@ static int adv7535_power_up(const struct device *dev)
 
 	adv7535_enable_interrupts(dev);
 	adv7535_dsi_power_on(dev);
+	adv7535_set_fixed_registers(dev);
 	adv7535_set_cec_fixed_registers(dev);
 
 	adv7535_configure(dev);
