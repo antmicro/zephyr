@@ -300,6 +300,12 @@ static int adv7535_disable_test_pattern(const struct device *dev)
 
 static int adv7535_configure(const struct device *dev)
 {
+	const struct adv7535_config *config = dev->config;
+
+	uint16_t hsync_end, hsync_start, hdisplay, htotal, vsync_end, vsync_start, vdisplay, vtotal;
+	uint32_t hsw, hfp, hbp, vsw, vfp, vbp;
+
+	static const uint8_t clock_div_by_lanes[] = { 6, 4, 3 };	/* 2, 3, 4 lanes */
 
 	// Set HDMI/DVI Mode (1 = HDMI; 0 = DVI)
 	// Works only with DVI
@@ -312,39 +318,50 @@ static int adv7535_configure(const struct device *dev)
 	// Linux driver sets high/low hsync and vsync polarity in adv7511_mode_set,
 	// our dsi host in dts has polarity set to high which is the default in adv
 
-	/*
-	 * Linux adv7533_dsi_config_timing_gen() packs each timing value as:
-	 *   high byte: timing >> 4
-	 *   low byte:  (timing << 4) & 0xff
-	 *
-	 * htotal = 800 + 34 + 2 + 34 = 870 = 0x366 -> 0x36, 0x60
-	 * hsw    = 2                         = 0x002 -> 0x00, 0x20
-	 * hfp    = 34                        = 0x022 -> 0x02, 0x20
-	 * hbp    = 34                        = 0x022 -> 0x02, 0x20
-	 * vtotal = 480 + 150 + 120 + 150 = 900 = 0x384 -> 0x38, 0x40
-	 * vsw    = 120                       = 0x078 -> 0x07, 0x80
-	 * vfp    = 150                       = 0x096 -> 0x09, 0x60
-	 * vbp    = 150                       = 0x096 -> 0x09, 0x60
-	 *
-	 * clock_div_by_lanes[2 - 2] << 3 = 6 << 3 = 0x30
-	 */
-	adv7535_write_cec(dev, 0x16, 0x30);
-	adv7535_write_cec(dev, 0x28, 0x36);
-	adv7535_write_cec(dev, 0x29, 0x60);
-	adv7535_write_cec(dev, 0x2a, 0x00);
-	adv7535_write_cec(dev, 0x2b, 0x20);
-	adv7535_write_cec(dev, 0x2c, 0x02);
-	adv7535_write_cec(dev, 0x2d, 0x20);
-	adv7535_write_cec(dev, 0x2e, 0x02);
-	adv7535_write_cec(dev, 0x2f, 0x20);
-	adv7535_write_cec(dev, 0x30, 0x38);
-	adv7535_write_cec(dev, 0x31, 0x40);
-	adv7535_write_cec(dev, 0x32, 0x07);
-	adv7535_write_cec(dev, 0x33, 0x80);
-	adv7535_write_cec(dev, 0x34, 0x09);
-	adv7535_write_cec(dev, 0x35, 0x60);
-	adv7535_write_cec(dev, 0x36, 0x09);
-	adv7535_write_cec(dev, 0x37, 0x60);
+	hsync_end   = 752;
+	hsync_start = 656;
+	hdisplay    = 640;
+	htotal      = 800;
+	vsync_end   = 492;
+	vsync_start = 490;
+	vdisplay    = 480;
+	vtotal      = 525;
+
+	hsw = hsync_end - hsync_start;
+	hfp = hsync_start - hdisplay;
+	hbp = htotal - hsync_end;
+	vsw = vsync_end - vsync_start;
+	vfp = vsync_start - vdisplay;
+	vbp = vtotal - vsync_end;
+
+
+	// Linux adv7533_dsi_config_timing_gen() packs each timing value as:
+	//   high byte: timing >> 4
+	//   low byte:  (timing << 4) & 0xff
+
+	/* set pixel clock divider mode */
+	adv7535_write_cec(dev, 0x16, clock_div_by_lanes[config->num_of_lanes - 2] << 3);
+
+
+	/* horizontal porch params */
+	adv7535_write_cec(dev, 0x28, htotal >> 4);
+	adv7535_write_cec(dev, 0x29, (htotal << 4) & 0xff);
+	adv7535_write_cec(dev, 0x2a, hsw >> 4);
+	adv7535_write_cec(dev, 0x2b, (hsw << 4) & 0xff);
+	adv7535_write_cec(dev, 0x2c, hfp >> 4);
+	adv7535_write_cec(dev, 0x2d, (hfp << 4) & 0xff);
+	adv7535_write_cec(dev, 0x2e, hbp >> 4);
+	adv7535_write_cec(dev, 0x2f, (hbp << 4) & 0xff);
+
+	/* vertical porch params */
+	adv7535_write_cec(dev, 0x30, vtotal >> 4);
+	adv7535_write_cec(dev, 0x31, (vtotal << 4) & 0xff);
+	adv7535_write_cec(dev, 0x32, vsw >> 4);
+	adv7535_write_cec(dev, 0x33, (vsw << 4) & 0xff);
+	adv7535_write_cec(dev, 0x34, vfp >> 4);
+	adv7535_write_cec(dev, 0x35, (vfp << 4) & 0xff);
+	adv7535_write_cec(dev, 0x36, vbp >> 4);
+	adv7535_write_cec(dev, 0x37, (vbp << 4) & 0xff);
 
 	return 0;
 }
