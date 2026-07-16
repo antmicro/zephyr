@@ -392,7 +392,7 @@ static int adv7535_power_down(const struct device *dev)
 	if (pd_bit) {
 		LOG_INF("Powering down ADV7535, while it is already powered down");
 	} else {
-		ret = adv7535_write_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, 0);
+		ret = adv7535_write_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, ADV7535_POWER_DOWN);
 	}
 
 	return ret;
