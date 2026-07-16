@@ -422,6 +422,16 @@ static int adv7535_attach_to_mipi_dsi_host(const struct device* dev)
 	int ret;
 	struct mipi_dsi_device mdev = {0};
 
+	mdev.timings.hactive = 640;
+	mdev.timings.hsync   = 96;
+	mdev.timings.hfp     = 16;
+	mdev.timings.hbp     = 48;
+
+	mdev.timings.vactive = 480;
+	mdev.timings.vsync   = 2;
+	mdev.timings.vfp     = 10;
+	mdev.timings.vbp     = 33;
+
 	mdev.data_lanes = config->num_of_lanes;
 	mdev.pixfmt = data->pixel_format;
 
