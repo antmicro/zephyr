@@ -291,6 +291,13 @@ static int adv7535_enable_test_pattern(const struct device *dev)
 	return 0;
 }
 
+static int adv7535_disable_test_pattern(const struct device *dev)
+{
+	adv7535_write_cec(dev, 0x55, 0x00);
+
+	return 0;
+}
+
 static int adv7535_configure(const struct device *dev)
 {
 
@@ -364,7 +371,8 @@ static int adv7535_power_up(const struct device *dev)
 
 	adv7535_configure(dev);
 
-	adv7535_enable_test_pattern(dev);
+	// adv7535_enable_test_pattern(dev);
+	adv7535_disable_test_pattern(dev);
 
 	return ret;
 }
@@ -712,12 +720,6 @@ static int adv7535_init(const struct device *dev)
 		LOG_ERR("Failed to set adv7535 data values");
 		goto error;
 	}
-
-	// Override HPD to be high so adv7535 can turn on
-	// uint8_t hpd_control_register;
-	// adv7535_read(dev, 0xd6, &hpd_control_register);
-	// hpd_control_register |= 0x40U;
-	// adv7535_write(dev, 0xd6, hpd_control_register);
 
 	/* Is adv7535_power_down/up call needed here? */
 	// adv7535_power_down(dev);
