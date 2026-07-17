@@ -26,7 +26,8 @@
 		compatible = "zephyr,panel-timing";
 		hsync-active = <0>;
 		vsync-active = <0>;
-		de-active = <1>;
+		/* The STM32 DSI wrapper requires LTDC DE polarity opposite to DSI DE. */
+		de-active = <0>;
 		pixelclk-active = <0>;
 		hsync-len = <96>;
 		vsync-len = <2>;
@@ -50,6 +51,9 @@
 &mipi_dsi {
 	status = "okay";
 
+
+	/delete-property/ non-continuous;
+
 	/* DSI HOST dedicated PLL
 	 * F_VCO = CLK_IN / pll-idf * 2 * pll-ndiv
 	 * PHI = F_VCO / 2 / (1 << pll-odf) = lane_byte_clk
@@ -59,6 +63,8 @@
 	pll-idf = <5>;
 	pll-odf = <0>;
 
+	/* phy-timings = <20 20 10 10 0 0>; */
+
 	/* vs-active-high; */
 	/* hs-active-high; */
 	de-active-high;
@@ -66,7 +72,7 @@
 	//loosely-packed;
 	largest-packet-size = <64>;
 	bta-ack-disable;
-	test-pattern = <1>;
+	/* test-pattern = <1>; */
 	nt35510: nt35510@0 {
 		status = "okay";
 		compatible = "frida,nt35510";
