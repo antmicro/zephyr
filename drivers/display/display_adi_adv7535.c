@@ -309,7 +309,8 @@ static int adv7535_configure(const struct device *dev)
 
 	// Set HDMI/DVI Mode (1 = HDMI; 0 = DVI)
 	// Works only with DVI
-	adv7535_write_bit(dev, 0xaf, BIT(1), 0);
+	adv7535_write_bit(dev, 0xaf, BIT(1), BIT(1));
+	// adv7535_write_bit(dev, 0xaf, BIT(1), 0);
 
 	// These are defaults
 	// adv7535_write_bit(dev, 0xaf, BIT(7), 0);
@@ -437,7 +438,7 @@ static int adv7535_attach_to_mipi_dsi_host(const struct device* dev)
 	mdev.pixfmt = data->pixel_format;
 
 	mdev.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE
-			  | MIPI_DSI_MODE_EOT_PACKET | MIPI_DSI_MODE_VIDEO_HSE;
+			  | MIPI_DSI_MODE_VIDEO_HSE;
 
 	ret = mipi_dsi_attach(config->mipi_dsi_host, config->channel, &mdev);
 	if (ret < 0) {
@@ -777,6 +778,18 @@ static int adv7535_init(const struct device *dev)
 		LOG_ERR("Failed to attach to MIPI DSI host: %d", ret);
 		goto error;
 	}
+
+	k_msleep(20);
+	if (true) {
+		/* Reset internal timing generator */
+		adv7535_write_cec(dev, 0x27, 0xcb);
+		adv7535_write_cec(dev, 0x27, 0x8b);
+		adv7535_write_cec(dev, 0x27, 0xcb);
+	} else {
+		/* Disable internal timing generator */
+		adv7535_write_cec(dev, 0x27, 0x0b);
+	}
+
 
 	// TODO: Evaluated what priority should this thraed have
 	k_thread_create(&drv_stack_data, drv_stack, K_KERNEL_STACK_SIZEOF(drv_stack),
