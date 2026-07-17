@@ -246,7 +246,7 @@
 &ltdc {
 	status = "okay";
 	ext-sdram = <&sdram2>;
-	width = <800>;
+	width = <640>;
 	height = <480>;
 	def-back-color-red = <0>;
 	def-back-color-green = <0>;
@@ -261,12 +261,12 @@
 		vsync-active = <0>;
 		de-active = <0>;
 		pixelclk-active = <0>;
-		hsync-len = <2>;
-		vsync-len = <120>;
-		hback-porch = <34>;
-		vback-porch = <150>;
-		hfront-porch = <34>;
-		vfront-porch = <150>;
+		hsync-len = <96>;
+		vsync-len = <2>;
+		hback-porch = <48>;
+		vback-porch = <33>;
+		hfront-porch = <16>;
+		vfront-porch = <10>;
 	};
 };
 
@@ -274,33 +274,38 @@
 &pll3 {
 	status = "okay";
 	clocks = <&clk_hse>;
+
 	div-m = <5>;
-	mul-n = <132>;
-	div-p = <2>;
-	div-q = <2>;
-	div-r = <24>; /* 27.5 MHz */
+	mul-n = <120>;
+	div-r = <24>;
 };
 
 &mipi_dsi {
 	status = "okay";
+
+	/delete-property/ non-continuous;
 
 	/* DSI HOST dedicated PLL
 	 * F_VCO = CLK_IN / pll-idf * 2 * pll-ndiv
 	 * PHI = F_VCO / 2 / (1 << pll-odf) = lane_byte_clk
 	 *	   = 25 MHz / 5 * 2 * 100 / 2 / (1<<0) / 8 = 62.5 MHz
 	 */
-	pll-ndiv = <100>;
+	pll-ndiv = <60>;
 	pll-idf = <5>;
 	pll-odf = <0>;
 
-	vs-active-high;
-	hs-active-high;
+	/* phy-timings = <20 20 10 10 0 0>; */
+	/* phy-timings = <20 20 10 10 0 0>; */
+
+	/* vs-active-high; */
+	/* hs-active-high; */
 	de-active-high;
 
-	loosely-packed;
+	//loosely-packed;
+
 	largest-packet-size = <64>;
 	bta-ack-disable;
-	test-pattern = <1>;
+	/* test-pattern = <1>; */
 	nt35510: nt35510@0 {
 		status = "okay";
 		compatible = "frida,nt35510";
@@ -332,7 +337,7 @@
 		reg = <0x39>;
 		compatible = "adi,adv7535";
 		mipi-dsi = <&mipi_dsi>;
-		dsi-channel = <2>;
+		dsi-channel = <0>;
 		data-lanes = <2>;
 		pixel-format = <MIPI_DSI_PIXFMT_RGB888>;
 		pd-gpios = <&gpiog 7 GPIO_ACTIVE_HIGH>;
