@@ -779,18 +779,6 @@ static int adv7535_init(const struct device *dev)
 		goto error;
 	}
 
-	k_msleep(20);
-	if (true) {
-		/* Reset internal timing generator */
-		adv7535_write_cec(dev, 0x27, 0xcb);
-		adv7535_write_cec(dev, 0x27, 0x8b);
-		adv7535_write_cec(dev, 0x27, 0xcb);
-	} else {
-		/* Disable internal timing generator */
-		adv7535_write_cec(dev, 0x27, 0x0b);
-	}
-
-
 	// TODO: Evaluated what priority should this thraed have
 	k_thread_create(&drv_stack_data, drv_stack, K_KERNEL_STACK_SIZEOF(drv_stack),
 			adv7535_thread, (void*)dev, NULL, NULL,
