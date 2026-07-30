@@ -243,6 +243,9 @@ static int adv7535_dsi_power_on(const struct device *dev)
 		adv7535_write_cec(dev, 0x27, 0x0b);
 	}
 
+	/* This should be configurable between DVI and HDMI, check linux driver
+	 * adv7511_set_config_csc() line 244
+	 */
 	/* Enable HDMI */
 	adv7535_write_cec(dev, 0x03, 0x89);
 
@@ -318,6 +321,7 @@ static int adv7535_configure(const struct device *dev)
 
 	// Linux driver sets high/low hsync and vsync polarity in adv7511_mode_set,
 	// our dsi host in dts has polarity set to high which is the default in adv
+	// TODO: Add the ability to set high/low polarity (reg 0x17 main) from dts and test it
 
 	hsync_end   = 752;
 	hsync_start = 656;
