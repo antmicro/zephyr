@@ -26,6 +26,17 @@ LOG_MODULE_REGISTER(adi_adv7535, CONFIG_DISPLAY_LOG_LEVEL);
 static K_KERNEL_STACK_DEFINE(drv_stack, CONFIG_ADV7535_THREAD_STACK_SIZE);
 static struct k_thread drv_stack_data;
 
+struct display_timings {
+	uint16_t hactive;
+	uint16_t hsync;
+	uint16_t hfp;
+	uint16_t hbp;
+	uint16_t vactive;
+	uint16_t vsync;
+	uint16_t vfp;
+	uint16_t vbp;
+};
+
 struct adv7535_i2c_conf {
 	uint8_t edid_addr;
 	uint8_t packet_addr;
@@ -41,6 +52,7 @@ struct adv7535_config {
 	struct adv7535_i2c_conf i2c_conf;
 	struct gpio_dt_spec dt_pd;
 	struct gpio_dt_spec dt_int;
+	struct display_timings display_timings;
 };
 
 struct adv7535_data {
@@ -304,9 +316,9 @@ static int adv7535_disable_test_pattern(const struct device *dev)
 static int adv7535_configure(const struct device *dev)
 {
 	const struct adv7535_config *config = dev->config;
+	const struct display_timings *dp = &config->display_timings;
 
-	uint16_t hsync_end, hsync_start, hdisplay, htotal, vsync_end, vsync_start, vdisplay, vtotal;
-	uint32_t hsw, hfp, hbp, vsw, vfp, vbp;
+	uint16_t htotal, vtotal;
 
 	static const uint8_t clock_div_by_lanes[] = { 6, 4, 3 };	/* 2, 3, 4 lanes */
 
@@ -323,21 +335,8 @@ static int adv7535_configure(const struct device *dev)
 	// our dsi host in dts has polarity set to high which is the default in adv
 	// TODO: Add the ability to set high/low polarity (reg 0x17 main) from dts and test it
 
-	hsync_end   = 752;
-	hsync_start = 656;
-	hdisplay    = 640;
-	htotal      = 800;
-	vsync_end   = 492;
-	vsync_start = 490;
-	vdisplay    = 480;
-	vtotal      = 525;
-
-	hsw = hsync_end - hsync_start;
-	hfp = hsync_start - hdisplay;
-	hbp = htotal - hsync_end;
-	vsw = vsync_end - vsync_start;
-	vfp = vsync_start - vdisplay;
-	vbp = vtotal - vsync_end;
+	htotal = dp->hactive + dp->hsync + dp->hfp + dp->hbp;
+	vtotal = dp->vactive + dp->vsync + dp->vfp + dp->vbp;
 
 
 	// Linux adv7533_dsi_config_timing_gen() packs each timing value as:
@@ -350,23 +349,24 @@ static int adv7535_configure(const struct device *dev)
 
 	/* horizontal porch params */
 	adv7535_write_cec(dev, 0x28, htotal >> 4);
-	adv7535_write_cec(dev, 0x29, (htotal << 4) & 0xff);
-	adv7535_write_cec(dev, 0x2a, hsw >> 4);
-	adv7535_write_cec(dev, 0x2b, (hsw << 4) & 0xff);
-	adv7535_write_cec(dev, 0x2c, hfp >> 4);
-	adv7535_write_cec(dev, 0x2d, (hfp << 4) & 0xff);
-	adv7535_write_cec(dev, 0x2e, hbp >> 4);
-	adv7535_write_cec(dev, 0x2f, (hbp << 4) & 0xff);
+	adv7535_write_cec(dev, 0x29, (htotal << 4));
+	// adv7535_write_cec(dev, 0x29, (htotal << 4) & 0xff);
+	adv7535_write_cec(dev, 0x2a, dp->hsync >> 4);
+	adv7535_write_cec(dev, 0x2b, (dp->hsync << 4) & 0xff);
+	adv7535_write_cec(dev, 0x2c, dp->hfp >> 4);
+	adv7535_write_cec(dev, 0x2d, (dp->hfp << 4) & 0xff);
+	adv7535_write_cec(dev, 0x2e, dp->hbp >> 4);
+	adv7535_write_cec(dev, 0x2f, (dp->hbp << 4) & 0xff);
 
 	/* vertical porch params */
 	adv7535_write_cec(dev, 0x30, vtotal >> 4);
 	adv7535_write_cec(dev, 0x31, (vtotal << 4) & 0xff);
-	adv7535_write_cec(dev, 0x32, vsw >> 4);
-	adv7535_write_cec(dev, 0x33, (vsw << 4) & 0xff);
-	adv7535_write_cec(dev, 0x34, vfp >> 4);
-	adv7535_write_cec(dev, 0x35, (vfp << 4) & 0xff);
-	adv7535_write_cec(dev, 0x36, vbp >> 4);
-	adv7535_write_cec(dev, 0x37, (vbp << 4) & 0xff);
+	adv7535_write_cec(dev, 0x32, dp->vsync >> 4);
+	adv7535_write_cec(dev, 0x33, (dp->vsync << 4) & 0xff);
+	adv7535_write_cec(dev, 0x34, dp->vfp >> 4);
+	adv7535_write_cec(dev, 0x35, (dp->vfp << 4) & 0xff);
+	adv7535_write_cec(dev, 0x36, dp->vbp >> 4);
+	adv7535_write_cec(dev, 0x37, (dp->vbp << 4) & 0xff);
 
 	return 0;
 }
@@ -424,19 +424,21 @@ static int adv7535_power_down(const struct device *dev)
 static int adv7535_attach_to_mipi_dsi_host(const struct device* dev)
 {
 	const struct adv7535_config *config = dev->config;
+	const struct display_timings *dp = &config->display_timings;
 	struct adv7535_data *data = dev->data;
 	int ret;
 	struct mipi_dsi_device mdev = {0};
 
-	mdev.timings.hactive = 640;
-	mdev.timings.hsync   = 96;
-	mdev.timings.hfp     = 16;
-	mdev.timings.hbp     = 48;
+	mdev.timings.hactive = dp->hactive;
+	mdev.timings.hsync   = dp->hsync;
+	mdev.timings.hfp     = dp->hfp;
+	mdev.timings.hbp     = dp->hbp;
 
-	mdev.timings.vactive = 480;
-	mdev.timings.vsync   = 2;
-	mdev.timings.vfp     = 10;
-	mdev.timings.vbp     = 33;
+	mdev.timings.vactive = dp->vactive;
+	mdev.timings.vsync   = dp->vsync;
+	mdev.timings.vfp     = dp->vfp;
+	mdev.timings.vbp     = dp->vbp;
+
 
 	mdev.data_lanes = config->num_of_lanes;
 	mdev.pixfmt = data->pixel_format;
@@ -827,7 +829,17 @@ error:
 			.fixed_addr = DT_INST_PROP_OR(id, fixed_addr, ADV7535_I2C_FIXED_ADDR_DEFAULT),    \
 		},                                                                                        \
 		.dt_pd = GPIO_DT_SPEC_INST_GET_OR(id, pd_gpios, {0}),                                     \
-		.dt_int = GPIO_DT_SPEC_INST_GET(id, int_gpios)                                            \
+		.dt_int = GPIO_DT_SPEC_INST_GET(id, int_gpios),                                           \
+		.display_timings = {                                                               \
+			.hactive = DT_INST_PROP(id, hactive),                                      \
+			.hsync = DT_INST_PROP(id, hsync),                                          \
+			.hfp = DT_INST_PROP(id, hfp),                                              \
+			.hbp = DT_INST_PROP(id, hbp),                                              \
+			.vactive = DT_INST_PROP(id, vactive),                                      \
+			.vsync = DT_INST_PROP(id, vsync),                                          \
+			.vfp = DT_INST_PROP(id, vfp),                                              \
+			.vbp = DT_INST_PROP(id, vbp),                                              \
+		}                                                                                  \
 	};                                                                                                \
 	static struct adv7535_data data_##id = {                                                          \
 		.pixel_format = DT_INST_PROP(id, pixel_format),                                           \
