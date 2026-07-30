@@ -343,5 +343,14 @@
 		pd-gpios = <&gpiog 7 GPIO_ACTIVE_HIGH>;
 		int-gpios = <&gpiok 2 GPIO_ACTIVE_LOW>; /* It is pulled up using a hardware restistor */
 		status = "okay";
+
+		hactive = <640>;
+		hsync = <96>;
+		hfp = <16>;
+		hbp = <48>;
+		vactive = <480>;
+		vsync = <2>;
+		vfp = <10>;
+		vbp = <33>;
 	};
 };
