@@ -80,6 +80,46 @@ properties:
     description:
       MIPI DSI virtual channel number used to communicate with the bridge.
 
+  hactive:
+    type: int
+    required: true
+    description: Horizontal active video area in pixels.
+
+  hsync:
+    type: int
+    required: true
+    description: Horizontal sync pulse width in pixels.
+
+  hfp:
+    type: int
+    required: true
+    description: Horizontal front porch width in pixels.
+
+  hbp:
+    type: int
+    required: true
+    description: Horizontal back porch width in pixels.
+
+  vactive:
+    type: int
+    required: true
+    description: Vertical active video area in lines.
+
+  vsync:
+    type: int
+    required: true
+    description: Vertical sync pulse width in lines.
+
+  vfp:
+    type: int
+    required: true
+    description: Vertical front porch height in lines.
+
+  vbp:
+    type: int
+    required: true
+    description: Vertical back porch height in lines.
+
   pd-gpios:
     type: phandle-array
     description: |
