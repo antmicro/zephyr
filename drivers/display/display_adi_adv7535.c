@@ -483,19 +483,20 @@ static int adv7535_configure_rst_gpio(const struct device *dev)
 	return ret;
 }
 
-static int adv7535_handle_monitor_sense(const struct device *dev, uint8_t int_0_reg)
+// Rewrite this function to be a probe for connection and then a separate function for the hpd int
+static int adv7535_handle_monitor_sense(const struct device *dev)
 {
 	struct adv7535_data *data = dev->data;
 
 	int ret;
 	uint8_t monitor_sense_state;
 	enum connection_state new_conn_state;
-	bool is_monitor_sense = int_0_reg & ADV7535_INT_0_MONITOR_SENSE;
-
-	if (!is_monitor_sense){
-		/* No connect/disconnect event */
-		return 0;
-	}
+	// bool is_monitor_sense = int_0_reg & ADV7535_INT_0_MONITOR_SENSE;
+	//
+	// if (!is_monitor_sense){
+	// 	/* No connect/disconnect event */
+	// 	return 0;
+	// }
 
 	ret = adv7535_read_bit(dev, ADV7535_REG_PORT_STATE, ADV7535_MONITOR_SENSE_STATE, &monitor_sense_state);
 	if (ret) {
@@ -541,7 +542,9 @@ static void adv7535_thread(void *p1, void *p2, void *p3)
 			adv7535_read(dev, ADV7535_REG_INT_0, &int_0_reg);
 			adv7535_read(dev, ADV7535_REG_INT_1, &int_1_reg);
 
-			ret = adv7535_handle_monitor_sense(dev, int_0_reg);
+			if (int_0_reg & ADV7535_INT_0_MONITOR_SENSE) {
+				ret = adv7535_handle_monitor_sense(dev);
+			}
 
 			/* Clear all interrupts */
 			adv7535_write(dev, ADV7535_REG_INT_0, int_0_reg);
@@ -738,8 +741,8 @@ static int adv7535_init(const struct device *dev)
 	}
 
 	/* Is adv7535_power_down/up call needed here? */
-	// adv7535_power_down(dev);
-	adv7535_power_up(dev);
+	adv7535_power_down(dev);
+	// adv7535_power_up(dev);
 
 	ret = adv7535_set_fixed_registers(dev);
 	if (ret){
@@ -775,6 +778,8 @@ static int adv7535_init(const struct device *dev)
 	// TODO: Add general info here like i2c addresses, channel etc.
 	adv7535_read(dev, 0x00, &revision);
 	LOG_DBG("ADV7535 initialized. Chip Revision: %d", revision);
+
+	adv7535_handle_monitor_sense(dev);
 
 	return 0;
 
