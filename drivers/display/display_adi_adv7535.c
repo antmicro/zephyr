@@ -130,6 +130,7 @@ static int adv7535_write_bit(const struct device *dev, uint8_t reg, uint8_t bit,
 	}
 
 	buf &= ~bit;
+	// BUG: here we can set all bits, not just the one specified by the bit arg
 	buf |= val;
 
 	return adv7535_write(dev, reg, buf);
