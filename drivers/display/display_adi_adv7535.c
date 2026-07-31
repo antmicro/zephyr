@@ -263,24 +263,6 @@ static int adv7535_dsi_power_on(const struct device *dev)
 	/* Disable test mode */
 	// adv7535_write_cec(dev, 0x55, 0x00);
 
-	adv7535_set_cec_fixed_registers(dev);
-
-	/* Code below is only in the STM driver */
-
-	/* Enable GC packet */
-	adv7535_read(dev, ADV7535_REG_ENABLE_0, &tmp);
-	tmp |= ADV7535_ENABLE_0_PACKET_GC;
-	adv7535_write(dev, ADV7535_REG_ENABLE_0, tmp);
-
-	/* Input color depth 24-bit per pixel */
-	adv7535_read(dev, 0x4C, &tmp);
-	tmp &= ~0x0FU;
-	tmp |= 0x03U;
-	adv7535_write(dev, 0x4C, tmp);
-
-	/* Down dither output color depth */
-	adv7535_write(dev, 0x49, 0xFC);
-
 	return ret;
 }
 
