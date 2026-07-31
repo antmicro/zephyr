@@ -11,3 +11,9 @@ config ADI_ADV7535
 	depends on DT_HAS_ADI_ADV7535_ENABLED
 	help
 	  Enable driver for Analog Devices ADV7535 DSI-to-HDMI display bridge.
+
+config ADV7535_THREAD_STACK_SIZE
+	int "Driver internal thread stack size"
+	default 1024
+	help
+	  Size of the stack used in the driver.

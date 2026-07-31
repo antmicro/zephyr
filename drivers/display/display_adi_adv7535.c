@@ -21,8 +21,6 @@
 
 LOG_MODULE_REGISTER(adi_adv7535, CONFIG_DISPLAY_LOG_LEVEL);
 
-#define CONFIG_ADV7535_THREAD_STACK_SIZE 1024 // TODO: Add kconfig for this
-
 static K_KERNEL_STACK_DEFINE(drv_stack, CONFIG_ADV7535_THREAD_STACK_SIZE);
 static struct k_thread drv_stack_data;
 
