@@ -639,9 +639,7 @@ static int adv7535_reset(const struct device *dev)
 		ret |= gpio_pin_set_dt(&config->dt_pd, 0);
 		LOG_DBG("Reset using Power Down pin");
 	} else {
-		ret = adv7535_power_down(dev);
-		ret |= adv7535_power_up(dev);
-		LOG_DBG("Reset using Power Down register");
+		LOG_DBG("Powerd Down pin was not provided, skipping reset.");
 	}
 
 	if (ret){
