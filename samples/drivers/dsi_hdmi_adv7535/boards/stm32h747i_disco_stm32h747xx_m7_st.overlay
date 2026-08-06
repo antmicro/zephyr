@@ -73,31 +73,12 @@
 	largest-packet-size = <64>;
 	bta-ack-disable;
 	/* test-pattern = <1>; */
-	nt35510: nt35510@0 {
-		status = "okay";
-		compatible = "frida,nt35510";
-		reg = <0x0>;
-		height = <800>;
-		width = <480>;
-		reset-gpios = <&dsi_lcd_qsh_030 57 GPIO_ACTIVE_HIGH>;
-		bl-gpios = <&dsi_lcd_qsh_030 53 GPIO_ACTIVE_HIGH>;
-		data-lanes = <2>;
-		pixel-format = <MIPI_DSI_PIXFMT_RGB888>;
-		rotation = <90>;
-	};
-};
 
-&i2c4 {
-	pinctrl-0 = <&i2c4_scl_pd12 &i2c4_sda_pd13>;
-	pinctrl-names = "default";
-	clock-frequency = <I2C_BITRATE_FAST>;
-	status = "okay";
-
-	adv7535: adv7535@39 {
-		reg = <0x39>;
+	adv7535: adv7535@0 {
+		reg = <0>;
 		compatible = "adi,adv7535";
-		mipi-dsi = <&mipi_dsi>;
-		dsi-channel = <0>;
+		i2c = <&i2c4>;
+		i2c-addr = <0x39>;
 		data-lanes = <2>;
 		pixel-format = <MIPI_DSI_PIXFMT_RGB888>;
 		pd-gpios = <&gpiog 3 GPIO_ACTIVE_HIGH>;
@@ -113,4 +94,11 @@
 		vfp = <10>;
 		vbp = <33>;
 	};
+};
+
+&i2c4 {
+	pinctrl-0 = <&i2c4_scl_pd12 &i2c4_sda_pd13>;
+	pinctrl-names = "default";
+	clock-frequency = <I2C_BITRATE_FAST>;
+	status = "okay";
 };

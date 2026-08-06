@@ -18,23 +18,12 @@ description: |
 
 compatible: "adi,adv7535"
 
-include: base.yaml
-
-on-bus: i2c
+include: mipi-dsi-device.yaml
 
 properties:
   reg:
-    required: true
-    enum:
-      - 0x39
-      - 0x3d
-    description: |
-      Main Register Map is 0x72 or 0x7A,
-      based on whether PD/AD is pulled high (10KΩ resistor to power supply = 0x7A)
-      or pulled low (10KΩ resistor to GND = 0x72)
-      when power is applied to the supplies.
-      The user should wait 200ms for the address to be decided, after the power
-      supplies are high, before attempting to communicate with the ADV7511 using I2C.
+    description:
+      MIPI DSI virtual channel number used to communicate with the bridge.
 
   edid-addr:
     type: int
@@ -68,17 +57,23 @@ properties:
     description:
       Pixel format. Available formats in dt-bindings/mipi_dsi/mipi_dsi.h.
 
-  mipi-dsi:
+  i2c:
     type: phandle
     required: true
     description:
-      Instance of the MIPI DSI peripheral.
+      I2C controller used to access the bridge registers.
 
-  dsi-channel:
+  i2c-addr:
     type: int
     required: true
-    description:
-      MIPI DSI virtual channel number used to communicate with the bridge.
+    enum:
+      - 0x39
+      - 0x3d
+    description: |
+      Main register map I2C address. The address is 0x39 when PD/AD is pulled
+      low and 0x3d when PD/AD is pulled high as power is applied. Wait 200 ms
+      after the power supplies become stable before communicating with the
+      ADV7535 over I2C.
 
   hactive:
     type: int

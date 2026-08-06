@@ -306,17 +306,25 @@
 	largest-packet-size = <64>;
 	bta-ack-disable;
 	/* test-pattern = <1>; */
-	nt35510: nt35510@0 {
-		status = "okay";
-		compatible = "frida,nt35510";
-		reg = <0x0>;
-		height = <800>;
-		width = <480>;
-		reset-gpios = <&dsi_lcd_qsh_030 57 GPIO_ACTIVE_HIGH>;
-		bl-gpios = <&dsi_lcd_qsh_030 53 GPIO_ACTIVE_HIGH>;
+	adv7535: adv7535@0 {
+		reg = <0>;
+		compatible = "adi,adv7535";
 		data-lanes = <2>;
+		i2c = <&i2c4>;
+		i2c-addr = <0x39>;
 		pixel-format = <MIPI_DSI_PIXFMT_RGB888>;
-		rotation = <90>;
+		pd-gpios = <&gpiog 7 GPIO_ACTIVE_HIGH>;
+		int-gpios = <&gpiok 2 GPIO_ACTIVE_LOW>;
+		status = "okay";
+
+		hactive = <640>;
+		hsync = <96>;
+		hfp = <16>;
+		hbp = <48>;
+		vactive = <480>;
+		vsync = <2>;
+		vfp = <10>;
+		vbp = <33>;
 	};
 };
 
@@ -331,26 +339,5 @@
 		//compatible = "maxim,max98091";
 		//mclk-frequency = <13000000>;
 		status = "okay";
-	};
-
-	adv7535: adv7535@39 {
-		reg = <0x39>;
-		compatible = "adi,adv7535";
-		mipi-dsi = <&mipi_dsi>;
-		dsi-channel = <0>;
-		data-lanes = <2>;
-		pixel-format = <MIPI_DSI_PIXFMT_RGB888>;
-		pd-gpios = <&gpiog 7 GPIO_ACTIVE_HIGH>;
-		int-gpios = <&gpiok 2 GPIO_ACTIVE_LOW>; /* It is pulled up using a hardware restistor */
-		status = "okay";
-
-		hactive = <640>;
-		hsync = <96>;
-		hfp = <16>;
-		hbp = <48>;
-		vactive = <480>;
-		vsync = <2>;
-		vfp = <10>;
-		vbp = <33>;
 	};
 };
