@@ -58,6 +58,7 @@ struct adv7535_data {
 	struct k_sem irq_sem;
 	enum connection_state conn_state;
 	uint8_t pixel_format;
+	bool powered;
 };
 
 static bool adv7535_i2c_bus_ready(const struct device *dev)
@@ -354,19 +355,12 @@ static int adv7535_configure(const struct device *dev)
 
 static int adv7535_power_up(const struct device *dev)
 {
-	int ret = 0;
+	struct adv7535_data *data = dev->data;
 	uint8_t pd_bit;
+	int ret = 0;
 
-	ret = adv7535_read_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, &pd_bit);
-	if (ret) {
-		return ret;
-	}
-
-	if (pd_bit) {
-		ret = adv7535_write_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, 0);
-	} else {
-		LOG_INF("Powering up ADV7535, while it is already powered up");
-	}
+	ret = adv7535_write_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, 0);
+	data->powered = true;
 
 	adv7535_enable_interrupts(dev);
 	adv7535_dsi_power_on(dev);
@@ -384,20 +378,12 @@ static int adv7535_power_up(const struct device *dev)
 static int adv7535_power_down(const struct device *dev)
 {
 	/* TODO: Verify this does not need to do more things */
-
-	int ret = 0;
+	struct adv7535_data *data = dev->data;
 	uint8_t pd_bit;
+	int ret = 0;
 
-	ret = adv7535_read_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, &pd_bit);
-	if (ret) {
-		return ret;
-	}
-
-	if (pd_bit) {
-		LOG_INF("Powering down ADV7535, while it is already powered down");
-	} else {
-		ret = adv7535_write_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, ADV7535_POWER_DOWN);
-	}
+	ret = adv7535_write_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, ADV7535_POWER_DOWN);
+	data->powered = false;
 
 	return ret;
 }
@@ -483,20 +469,13 @@ static int adv7535_configure_rst_gpio(const struct device *dev)
 	return ret;
 }
 
-// Rewrite this function to be a probe for connection and then a separate function for the hpd int
-static int adv7535_handle_monitor_sense(const struct device *dev)
+static int adv7535_handle_hotplug(const struct device *dev)
 {
 	struct adv7535_data *data = dev->data;
 
-	int ret;
 	uint8_t monitor_sense_state;
 	enum connection_state new_conn_state;
-	// bool is_monitor_sense = int_0_reg & ADV7535_INT_0_MONITOR_SENSE;
-	//
-	// if (!is_monitor_sense){
-	// 	/* No connect/disconnect event */
-	// 	return 0;
-	// }
+	int ret;
 
 	ret = adv7535_read_bit(dev, ADV7535_REG_PORT_STATE, ADV7535_MONITOR_SENSE_STATE, &monitor_sense_state);
 	if (ret) {
@@ -504,17 +483,16 @@ static int adv7535_handle_monitor_sense(const struct device *dev)
 	}
 	new_conn_state = monitor_sense_state ? CONNECTED : DISCONNECTED;
 
-	// TODO: When probing initially for display also call power up etc
-	// TODO: Then add a if here to check if state changed DISCONNECT -> CONNECT
-	if (new_conn_state == CONNECTED) {
+	if (new_conn_state == CONNECTED && !data->powered) {
 		adv7535_power_up(dev);
+	} else if (new_conn_state == DISCONNECTED && data->powered) {
+		adv7535_power_down(dev);
 	}
-	// TODO: Handle DISCONNECT
 
 	if (data->conn_state != new_conn_state) {
-		data->conn_state = new_conn_state;
 		LOG_DBG("%s detected", new_conn_state == CONNECTED ? "Connect" : "Disconnect");
 	}
+	data->conn_state = new_conn_state;
 
 	return 0;
 }
@@ -543,7 +521,7 @@ static void adv7535_thread(void *p1, void *p2, void *p3)
 			adv7535_read(dev, ADV7535_REG_INT_1, &int_1_reg);
 
 			if (int_0_reg & ADV7535_INT_0_MONITOR_SENSE) {
-				ret = adv7535_handle_monitor_sense(dev);
+				ret = adv7535_handle_hotplug(dev);
 			}
 
 			/* Clear all interrupts */
@@ -678,7 +656,7 @@ static int adv7535_set_data(const struct device *dev)
 		return ret;
 	}
 
-	data->conn_state = monitor_sense_state ? CONNECTED : DISCONNECTED;
+	data->conn_state = DISCONNECTED;
 
 	return 0;
 }
@@ -779,7 +757,7 @@ static int adv7535_init(const struct device *dev)
 	adv7535_read(dev, 0x00, &revision);
 	LOG_DBG("ADV7535 initialized. Chip Revision: %d", revision);
 
-	adv7535_handle_monitor_sense(dev);
+	adv7535_handle_hotplug(dev);
 
 	return 0;
 
