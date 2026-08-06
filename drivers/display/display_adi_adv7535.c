@@ -651,7 +651,7 @@ static int adv7535_reset(const struct device *dev)
 	return ret;
 }
 
-static int adv7535_set_data(const struct device *dev)
+static int adv7535_init_data(const struct device *dev)
 {
 	struct adv7535_data *data = dev->data;
 	int ret;
@@ -719,7 +719,7 @@ static int adv7535_init(const struct device *dev)
 		goto error;
 	}
 
-	ret = adv7535_set_data(dev);
+	ret = adv7535_init_data(dev);
 	if (ret) {
 		LOG_ERR("Failed to set adv7535 data values");
 		goto error;
