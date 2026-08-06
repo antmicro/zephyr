@@ -225,6 +225,7 @@ static int adv7535_enable_interrupts(const struct device *dev)
 	return adv7535_write(dev, ADV7535_REG_INT_ENABLE_0,ADV7535_INT_0_MONITOR_SENSE);
 }
 
+// TODO: Change this name
 static int adv7535_dsi_power_on(const struct device *dev)
 {
 	const struct adv7535_config *config = dev->config;
@@ -295,6 +296,7 @@ static int adv7535_disable_test_pattern(const struct device *dev)
 	return 0;
 }
 
+// TOOD: Rename this to configure dsi or whatever
 static int adv7535_configure(const struct device *dev)
 {
 	const struct adv7535_config *config = dev->config;
@@ -315,7 +317,8 @@ static int adv7535_configure(const struct device *dev)
 
 	// Linux driver sets high/low hsync and vsync polarity in adv7511_mode_set,
 	// our dsi host in dts has polarity set to high which is the default in adv
-	// TODO: Add the ability to set high/low polarity (reg 0x17 main) from dts and test it
+	// TODO: Add the ability to set high/low polarity (reg 0x17 main) from dts and test it,
+	// check if adv7511 docs match what is written in the linux driver
 
 	htotal = dp->hactive + dp->hsync + dp->hfp + dp->hbp;
 	vtotal = dp->vactive + dp->vsync + dp->vfp + dp->vbp;
@@ -362,6 +365,9 @@ static int adv7535_power_up(const struct device *dev)
 	ret = adv7535_write_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, 0);
 	data->powered = true;
 
+	// TODO: This whole series of funcs should be in a separate configure functions
+	// Check what is actually needed
+	// TODO: Add error handling here
 	adv7535_enable_interrupts(dev);
 	adv7535_dsi_power_on(dev);
 	adv7535_set_fixed_registers(dev);
