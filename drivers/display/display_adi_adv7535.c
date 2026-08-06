@@ -137,7 +137,7 @@ static int adv7535_write_bit(const struct device *dev, uint8_t reg, uint8_t bit,
 	return adv7535_write(dev, reg, buf);
 }
 
-static int adv7535_read_bit(const struct device *dev, uint8_t reg, uint8_t bit, uint8_t *buf)
+static int adv7535_read_bit(const struct device *dev, uint8_t reg, uint8_t bit, bool *buf)
 {
 	int ret;
 	uint8_t byte_buf;
@@ -479,7 +479,7 @@ static int adv7535_handle_hotplug(const struct device *dev)
 {
 	struct adv7535_data *data = dev->data;
 
-	uint8_t monitor_sense_state;
+	bool monitor_sense_state;
 	enum connection_state new_conn_state;
 	int ret;
 
@@ -655,14 +655,15 @@ static int adv7535_set_data(const struct device *dev)
 {
 	struct adv7535_data *data = dev->data;
 	int ret;
-	uint8_t monitor_sense_state;
+	bool power_down;
 
-	ret = adv7535_read_bit(dev, ADV7535_REG_PORT_STATE, ADV7535_MONITOR_SENSE_STATE, &monitor_sense_state);
+	data->conn_state = DISCONNECTED;
+
+	ret = adv7535_read_bit(dev, ADV7535_REG_POWER, ADV7535_POWER_DOWN, &power_down);
 	if (ret) {
 		return ret;
 	}
-
-	data->conn_state = DISCONNECTED;
+	data->powered = power_down;
 
 	return 0;
 }
