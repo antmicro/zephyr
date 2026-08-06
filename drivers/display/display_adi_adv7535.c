@@ -774,16 +774,15 @@ error:
 
 #define ADV7535_IS_PD_ACTIVE_LOW(id) (DT_INST_GPIO_FLAGS(id, pd_gpios) & GPIO_ACTIVE_LOW)
 
-// FIX: Take i2c address from the i2c-addr val instead of reg, sicne I moved the dts note to be a
-// mipi child
-#define ADV7535_IS_PD_AND_ADDR_VALID(id)                                      \
-	((DT_INST_REG_ADDR(id) == 0x39 && !(ADV7535_IS_PD_ACTIVE_LOW(id))) || \
-	(DT_INST_REG_ADDR(id) == 0x3d && (ADV7535_IS_PD_ACTIVE_LOW(id))))     \
+#define ADV7535_DT_GET_I2C_ADDR(id) DT_INST_PROP(id, i2c_addr)
 
-// TODO: Rename macro to signify i2c
-#define ADV7535_VALIDATE_PD_AND_ADDR(id)                                      \
+#define ADV7535_IS_PD_AND_I2C_ADDR_VALID(id)                                      \
+	((ADV7535_DT_GET_I2C_ADDR(id) == 0x39 && !(ADV7535_IS_PD_ACTIVE_LOW(id))) || \
+	(ADV7535_DT_GET_I2C_ADDR(id) == 0x3d && (ADV7535_IS_PD_ACTIVE_LOW(id))))     \
+
+#define ADV7535_VALIDATE_PD_AND_I2C_ADDR(id)                                      \
 	IF_ENABLED(DT_INST_NODE_HAS_PROP(id, pd_gpios),                       \
-	(BUILD_ASSERT((ADV7535_IS_PD_AND_ADDR_VALID(id)),                     \
+	(BUILD_ASSERT((ADV7535_IS_PD_AND_I2C_ADDR_VALID(id)),                     \
 		"ADV7535 I2C address does not match pd-gpios polarity. "      \
 		"0x39 requres active high, 0x3d requres active low."          \
 	      ))                                                              \
@@ -822,6 +821,6 @@ error:
 	};                                                                                                \
 	DEVICE_DT_INST_DEFINE(id, adv7535_init, NULL, &data_##id, &config_##id,                           \
 			      POST_KERNEL, CONFIG_DISPLAY_INIT_PRIORITY, NULL);                           \
-	// ADV7535_VALIDATE_PD_AND_ADDR(id)                                                                  \
+	ADV7535_VALIDATE_PD_AND_I2C_ADDR(id)                                                                  \
 
 DT_INST_FOREACH_STATUS_OKAY(ADV7535_DEFINE)
